@@ -38,6 +38,32 @@ export default function Checkout() {
   const [paying, setPaying] = useState(false);
   const [done, setDone] = useState(null);
 
+  const [countdown, setCountdown] = useState(3);
+
+  // Auto-redirect to the respective page after purchase
+  useEffect(() => {
+    if (!done) return;
+    const targetPath =
+      kind === 'ticket'
+        ? '/member/tickets'
+        : kind === 'plan'
+          ? '/member/membership'
+          : '/member/orders';
+
+    const interval = setInterval(() => {
+      setCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          navigate(targetPath);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [done, kind, navigate]);
+
   const kind = intent?.kind || (items.length ? 'merch' : null);
   const quoteKey = [
     'quote',
@@ -96,6 +122,19 @@ export default function Checkout() {
       KIND_META[
         done.ref.startsWith('TKT') ? 'ticket' : done.ref.startsWith('MEM') ? 'plan' : 'merch'
       ];
+    const destinationPath =
+      kind === 'ticket'
+        ? '/member/tickets'
+        : kind === 'plan'
+          ? '/member/membership'
+          : '/member/orders';
+    const destinationLabel =
+      kind === 'ticket'
+        ? 'Go to My Tickets'
+        : kind === 'plan'
+          ? 'Go to My Membership'
+          : 'Go to My Orders';
+
     return (
       <div
         className="mx-auto flex min-h-screen max-w-2xl flex-col items-center justify-center px-5 py-16 text-center"
@@ -111,7 +150,14 @@ export default function Checkout() {
           Reference <span className="font-mono font-bold text-ink">{done.ref}</span> · {meta.title}{' '}
           · {new Date(done.paidAt).toLocaleString('en-IN')}
         </p>
-        <div className="mt-8 w-full text-left">
+
+        {/* Auto-redirect indicator */}
+        <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-accent/20 bg-accent/5 px-4 py-1.5 font-mono text-xs font-semibold text-accent-dark">
+          <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+          <span>Redirecting to your {kind === 'ticket' ? 'tickets' : kind === 'plan' ? 'membership' : 'orders'} in {countdown}s…</span>
+        </div>
+
+        <div className="mt-6 w-full text-left">
           <PriceBreakdown quote={done.breakdown} testid="success-price-breakdown" />
         </div>
         {done.newBalance !== null && (
@@ -127,13 +173,13 @@ export default function Checkout() {
         )}
         {kind === 'ticket' && user && (
           <p className="mt-4 text-sm text-ink/60">
-            Your QR ticket is in My Tickets — flash it at the door.
+            Your QR ticket is ready in My Tickets — flash it at the entrance scanner.
           </p>
         )}
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           {user ? (
-            <Button onClick={() => navigate('/member/tickets')} data-testid="success-view-tickets">
-              View my tickets
+            <Button onClick={() => navigate(destinationPath)} data-testid="success-view-tickets">
+              {destinationLabel}
             </Button>
           ) : (
             <Button onClick={() => navigate('/login')} data-testid="success-signin">

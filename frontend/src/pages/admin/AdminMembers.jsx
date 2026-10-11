@@ -38,6 +38,18 @@ export default function AdminMembers() {
     queryFn: adminApi.members,
   });
 
+  const isSuperAdmin = user?.role === 'super_admin' || user?.rawRole === 'SUPER_ADMIN';
+
+  // Club admin can only see members under their team, never Super Admin
+  const visibleMembers = members.filter((m) => {
+    if (isSuperAdmin) return true;
+    return m.role !== 'SUPER_ADMIN';
+  });
+
+  const availableRoles = isSuperAdmin
+    ? ROLES
+    : ROLES.filter((r) => r.value !== 'SUPER_ADMIN');
+
   const { data: matrixData } = useQuery({
     queryKey: ['role-authority-matrix'],
     queryFn: adminApi.getRoleAuthorityMatrix,
@@ -231,7 +243,7 @@ export default function AdminMembers() {
       </div>
 
       <DataTable
-        rows={members.map((m) => ({
+        rows={visibleMembers.map((m) => ({
           ...m,
           expiresLabel: m.expires ? fmtDate(m.expires) : '—',
           tone: TONE[m.status] || 'neutral',
@@ -260,7 +272,7 @@ export default function AdminMembers() {
                 disabled={roleMutation.isPending}
                 className="rounded-lg border border-line-strong bg-paper px-2.5 py-1 text-xs font-semibold text-ink shadow-xs transition hover:border-accent-dark focus:border-accent-dark focus:outline-hidden"
               >
-                {ROLES.map((opt) => (
+                {availableRoles.map((opt) => (
                   <option key={opt.value} value={opt.value}>
                     {opt.label}
                   </option>
@@ -412,7 +424,7 @@ export default function AdminMembers() {
                 onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
                 className="mt-1 w-full rounded-xl border border-ink/15 bg-white p-2.5 text-sm text-ink outline-none focus:border-accent"
               >
-                {ROLES.map((r) => (
+                {availableRoles.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
                   </option>
@@ -512,7 +524,7 @@ export default function AdminMembers() {
                 onChange={(e) => setEditForm({ ...editForm, role: e.target.value })}
                 className="mt-1 w-full rounded-xl border border-ink/15 bg-white p-2.5 text-sm text-ink outline-none focus:border-accent"
               >
-                {ROLES.map((r) => (
+                {availableRoles.map((r) => (
                   <option key={r.value} value={r.value}>
                     {r.label}
                   </option>
