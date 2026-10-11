@@ -1,0 +1,48 @@
+{
+  "name": "student-organization-system",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "server",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=server",
+    "frontend:dev": "npm run dev --workspace=frontend",
+    "frontend:build": "npm run build --workspace=frontend",
+    "client:dev": "npm run dev --workspace=frontend",
+    "client:build": "npm run build --workspace=frontend",
+    "test": "npm run test --workspace=server",
+    "test:ci": "npm run test:ci --workspace=server",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:migrate": "npm run db:migrate --workspace=server",
+    "db:seed": "npm run db:seed --workspace=server",
+    "db:studio": "npm run db:studio --workspace=server",
+    "docker:up": "docker compose up -d",
+    "docker:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.14.0",
+    "eslint": "^9.14.0",
+    "eslint-config-prettier": "^10.0.0",
+    "eslint-plugin-react": "^7.37.0",
+    "eslint-plugin-react-hooks": "^5.0.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.4.0"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "argon2@0.41.1": true,
+    "esbuild@0.25.12": true,
+    "msgpackr-extract@3.0.4": true,
+    "prisma@6.19.3": true
+  },
+  "dependencies": {
+    "@neon/config": "^1.8.6",
+    "@neon/env": "^1.5.3"
+  }
+}

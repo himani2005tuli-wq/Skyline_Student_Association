@@ -1,0 +1,825 @@
+// This is your Prisma schema file.
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum Role {
+  SUPER_ADMIN
+  CLUB_ADMIN
+  TREASURER
+  EVENT_MANAGER
+  VOLUNTEER
+  MEMBER
+}
+
+enum MembershipStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+enum OrderStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PAID
+  PROCESSING
+  FULFILLED
+  CANCELLED
+  REFUNDED
+}
+
+enum BookingStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+enum TicketStatus {
+  VALID
+  USED
+  CANCELLED
+  EXPIRED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+  ARCHIVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum ExpenseStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum LoyaltyTransactionType {
+  EARN
+  REDEEM
+  EXPIRE
+  REVERSAL
+  ADJUSTMENT
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum InventoryMovementType {
+  STOCK_IN
+  STOCK_OUT
+  SALE
+  RETURN
+  ADJUSTMENT
+  RESERVATION
+  RESERVATION_RELEASE
+}
+
+enum NotificationChannel {
+  EMAIL
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  BOUNCED
+}
+
+enum FinancialCategory {
+  MEMBERSHIP_DUES
+  TICKET_INCOME
+  MERCHANDISE_SALES
+  FUNDRAISER_INCOME
+  DONATION
+  EXPENSE
+  REIMBURSEMENT
+  REFUND
+  PAYMENT_FEE
+  POINTS_EARNED
+  POINTS_REDEEMED
+  POINTS_REVERSED
+}
+
+// ─── Core Models ────────────────────────────────────────
+
+model User {
+  id                  String    @id @default(uuid())
+  email               String    @unique
+  passwordHash        String
+  firstName           String
+  lastName            String
+  phone               String?
+  role                Role      @default(MEMBER)
+  emailVerified       Boolean   @default(false)
+  emailVerifyToken    String?   @unique
+  emailVerifyExpiry   DateTime?
+  resetToken          String?   @unique
+  resetTokenExpiry    DateTime?
+  isActive            Boolean   @default(true)
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  clubId              String?
+  club                Club?     @relation("ClubAdminUsers", fields: [clubId], references: [id])
+
+  // Relations
+  memberships          Membership[]
+  bookings             Booking[]
+  orders               Order[]
+  expenses             Expense[]
+  taskAssignments      TaskAssignment[]
+  loyaltyAccount       LoyaltyAccount?
+  auditLogs            AuditLog[]          @relation("AuditActor")
+  mailingSubscriptions MailingListSubscription[]
+  sessions             Session[]
+  authorities          UserAuthority[]
+  notifications        Notification[]
+
+  @@index([email])
+  @@index([role])
+  @@index([clubId])
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  data      Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// ─── Club ───────────────────────────────────────────────
+
+model Club {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  logoUrl     String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  membershipPlans MembershipPlan[]
+  events          Event[]
+  products        Product[]
+  fundraisers     Fundraiser[]
+  announcements   Announcement[]
+  discountRules   DiscountRule[]
+  adminUsers      User[]           @relation("ClubAdminUsers")
+
+  @@index([slug])
+}
+
+// ─── Membership ─────────────────────────────────────────
+
+model MembershipPlan {
+  id              String   @id @default(uuid())
+  clubId          String
+  name            String
+  description     String?
+  priceInPaise    Int
+  durationDays    Int
+  benefits        Json?
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  club         Club         @relation(fields: [clubId], references: [id])
+  memberships  Membership[]
+
+  @@index([clubId])
+}
+
+model Membership {
+  id             String           @id @default(uuid())
+  userId         String
+  planId         String
+  status         MembershipStatus @default(PENDING)
+  startDate      DateTime?
+  expiryDate     DateTime?
+  renewedFromId  String?          @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user                User               @relation(fields: [userId], references: [id])
+  plan                MembershipPlan     @relation(fields: [planId], references: [id])
+  renewedFrom         Membership?        @relation("MembershipRenewal", fields: [renewedFromId], references: [id])
+  renewedTo           Membership?        @relation("MembershipRenewal")
+  membershipPayments  MembershipPayment[]
+
+  @@unique([userId, planId, status], name: "unique_active_membership")
+  @@index([userId])
+  @@index([status])
+  @@index([expiryDate])
+}
+
+model MembershipPayment {
+  id            String   @id @default(uuid())
+  membershipId  String
+  paymentId     String?  @unique
+  amountInPaise Int
+  pointsUsed    Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  membership Membership @relation(fields: [membershipId], references: [id])
+  payment    Payment?   @relation(fields: [paymentId], references: [id])
+
+  @@index([membershipId])
+}
+
+// ─── Discounts & Loyalty Config ─────────────────────────
+
+model DiscountRule {
+  id                       String       @id @default(uuid())
+  clubId                   String
+  name                     String
+  discountType             DiscountType
+  discountValue            Int
+  appliesToTickets         Boolean      @default(true)
+  appliesToMerch           Boolean      @default(true)
+  appliesToMembership      Boolean      @default(false)
+  requiresActiveMembership Boolean      @default(true)
+  minPurchaseInPaise       Int          @default(0)
+  pointsPerHundred         Int          @default(1)
+  pointValueInPaise        Int          @default(100)
+  minRedemptionPoints      Int          @default(10)
+  maxRedemptionPercent     Int          @default(50)
+  allowFullPointsCoverage  Boolean      @default(false)
+  membersEarnPoints        Boolean      @default(true)
+  stackDiscounts           Boolean      @default(false)
+  earnOnPreDiscount        Boolean      @default(false)
+  pointsExpiryDays         Int          @default(365)
+  isActive                 Boolean      @default(true)
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+
+  club Club @relation(fields: [clubId], references: [id])
+
+  @@index([clubId])
+}
+
+// ─── Events & Ticketing ─────────────────────────────────
+
+model Event {
+  id              String      @id @default(uuid())
+  clubId          String
+  title           String
+  description     String?
+  location        String?
+  startDate       DateTime
+  endDate         DateTime
+  registrationOpen DateTime?
+  registrationClose DateTime?
+  capacity        Int?
+  waitlistEnabled Boolean     @default(false)
+  status          EventStatus @default(DRAFT)
+  imageUrl        String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  club        Club         @relation(fields: [clubId], references: [id])
+  ticketTypes TicketType[]
+  bookings    Booking[]
+
+  @@index([clubId])
+  @@index([status])
+  @@index([startDate])
+}
+
+model TicketType {
+  id                   String  @id @default(uuid())
+  eventId              String
+  name                 String
+  priceInPaise         Int
+  memberPriceInPaise   Int?
+  quantity             Int
+  soldCount            Int     @default(0)
+  isActive             Boolean @default(true)
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  event    Event     @relation(fields: [eventId], references: [id])
+  bookings Booking[]
+
+  @@index([eventId])
+}
+
+model Booking {
+  id              String        @id @default(uuid())
+  userId          String
+  eventId         String
+  ticketTypeId    String
+  quantity        Int
+  status          BookingStatus @default(PENDING_PAYMENT)
+  totalInPaise    Int
+  discountInPaise Int           @default(0)
+  pointsRedeemed  Int           @default(0)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user       User                    @relation(fields: [userId], references: [id])
+  event      Event                   @relation(fields: [eventId], references: [id])
+  ticketType TicketType              @relation(fields: [ticketTypeId], references: [id])
+  tickets    Ticket[]
+  payments   Payment[]
+  pricing    PurchasePricingSnapshot?
+
+  @@index([userId])
+  @@index([eventId])
+}
+
+model Ticket {
+  id        String       @id @default(uuid())
+  bookingId String
+  code      String       @unique
+  status    TicketStatus @default(VALID)
+  createdAt DateTime     @default(now())
+
+  booking Booking  @relation(fields: [bookingId], references: [id])
+  checkIn CheckIn?
+
+  @@index([code])
+  @@index([bookingId])
+}
+
+model CheckIn {
+  id        String   @id @default(uuid())
+  ticketId  String   @unique
+  checkedBy String
+  note      String?
+  createdAt DateTime @default(now())
+
+  ticket Ticket @relation(fields: [ticketId], references: [id])
+}
+
+// ─── Announcements & Notifications ──────────────────────
+
+model Announcement {
+  id          String   @id @default(uuid())
+  clubId      String
+  title       String
+  content     String
+  audience    Json?
+  isPublished  Boolean   @default(false)
+  publishedAt  DateTime?
+  scheduledFor DateTime?
+  cronPattern  String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  club          Club                   @relation(fields: [clubId], references: [id])
+  notifications NotificationDelivery[]
+
+  @@index([clubId])
+  @@index([isPublished])
+  @@index([scheduledFor])
+}
+
+model MailingListSubscription {
+  id            String              @id @default(uuid())
+  userId        String
+  channel       NotificationChannel
+  isSubscribed  Boolean             @default(true)
+  consentGivenAt DateTime?
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, channel])
+  @@index([userId])
+}
+
+model NotificationDelivery {
+  id              String             @id @default(uuid())
+  announcementId  String?
+  recipientEmail  String?
+  recipientPhone  String?
+  channel         NotificationChannel
+  status          NotificationStatus  @default(PENDING)
+  attempts        Int                 @default(0)
+  lastAttemptAt   DateTime?
+  errorMessage    String?
+  createdAt       DateTime            @default(now())
+
+  announcement Announcement? @relation(fields: [announcementId], references: [id])
+
+  @@index([announcementId])
+  @@index([status])
+}
+
+// ─── Merchandise ────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(uuid())
+  clubId      String
+  name        String
+  description String?
+  imageUrl    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  club     Club             @relation(fields: [clubId], references: [id])
+  variants ProductVariant[]
+
+  @@index([clubId])
+}
+
+model ProductVariant {
+  id         String   @id @default(uuid())
+  productId  String
+  name       String
+  sku        String   @unique
+  priceInPaise Int
+  memberPriceInPaise Int?
+  stock      Int      @default(0)
+  lowStockThreshold Int @default(5)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  product            Product             @relation(fields: [productId], references: [id])
+  inventoryMovements InventoryMovement[]
+  orderItems         OrderItem[]
+
+  @@index([productId])
+}
+
+model InventoryMovement {
+  id        String              @id @default(uuid())
+  variantId String
+  type      InventoryMovementType
+  quantity  Int
+  reason    String?
+  reference String?
+  createdAt DateTime            @default(now())
+
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([variantId])
+}
+
+// ─── Orders ─────────────────────────────────────────────
+
+model Order {
+  id              String      @id @default(uuid())
+  userId          String
+  status          OrderStatus @default(DRAFT)
+  totalInPaise    Int
+  discountInPaise Int         @default(0)
+  pointsRedeemed  Int         @default(0)
+  note            String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user     User                    @relation(fields: [userId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+  pricing  PurchasePricingSnapshot?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model OrderItem {
+  id             String @id @default(uuid())
+  orderId        String
+  variantId      String
+  quantity       Int
+  unitPriceInPaise Int
+  totalInPaise   Int
+  createdAt      DateTime @default(now())
+
+  order   Order          @relation(fields: [orderId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id])
+
+  @@index([orderId])
+}
+
+// ─── Payments ───────────────────────────────────────────
+
+model Payment {
+  id              String        @id @default(uuid())
+  orderId         String?
+  bookingId       String?
+  amountInPaise   Int
+  currency        String        @default("INR")
+  status          PaymentStatus @default(PENDING)
+  providerName    String?
+  providerRef     String?
+  idempotencyKey  String        @unique
+  metadata        Json?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  order              Order?              @relation(fields: [orderId], references: [id])
+  booking            Booking?            @relation(fields: [bookingId], references: [id])
+  refund             Refund?
+  membershipPayment  MembershipPayment?
+  webhookEvents      PaymentWebhookEvent[]
+
+  @@index([orderId])
+  @@index([bookingId])
+  @@index([idempotencyKey])
+  @@index([status])
+}
+
+model PaymentWebhookEvent {
+  id              String   @id @default(uuid())
+  paymentId       String?
+  providerEventId String   @unique
+  eventType       String
+  payload         Json
+  processed       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  payment Payment? @relation(fields: [paymentId], references: [id])
+
+  @@index([providerEventId])
+}
+
+model Refund {
+  id            String   @id @default(uuid())
+  paymentId     String   @unique
+  amountInPaise Int
+  reason        String?
+  providerRef   String?
+  createdAt     DateTime @default(now())
+
+  payment Payment @relation(fields: [paymentId], references: [id])
+}
+
+// ─── Loyalty ────────────────────────────────────────────
+
+model LoyaltyAccount {
+  id            String   @id @default(uuid())
+  userId        String   @unique
+  balance       Int      @default(0)
+  lifetimeEarned Int     @default(0)
+  lifetimeRedeemed Int   @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id])
+  transactions LoyaltyTransaction[]
+
+  @@index([userId])
+}
+
+model LoyaltyTransaction {
+  id              String                 @id @default(uuid())
+  accountId       String
+  type            LoyaltyTransactionType
+  points          Int
+  balanceAfter    Int
+  description     String?
+  referenceType   String?
+  referenceId     String?
+  idempotencyKey  String?                @unique
+  expiresAt       DateTime?
+  createdAt       DateTime               @default(now())
+
+  account    LoyaltyAccount   @relation(fields: [accountId], references: [id])
+  redemption LoyaltyRedemption?
+
+  @@index([accountId])
+  @@index([referenceType, referenceId])
+  @@index([idempotencyKey])
+  @@index([expiresAt])
+}
+
+model LoyaltyRedemption {
+  id            String @id @default(uuid())
+  transactionId String @unique
+  orderId       String?
+  bookingId     String?
+  membershipId  String?
+  amountInPaise Int
+  createdAt     DateTime @default(now())
+
+  transaction LoyaltyTransaction @relation(fields: [transactionId], references: [id])
+}
+
+// ─── Pricing Snapshot ───────────────────────────────────
+
+model PurchasePricingSnapshot {
+  id            String   @id @default(uuid())
+  orderId       String?  @unique
+  bookingId     String?  @unique
+  breakdown     Json
+  createdAt     DateTime @default(now())
+
+  order   Order?   @relation(fields: [orderId], references: [id])
+  booking Booking? @relation(fields: [bookingId], references: [id])
+}
+
+// ─── Fundraisers & Tasks ────────────────────────────────
+
+model Fundraiser {
+  id             String   @id @default(uuid())
+  clubId         String
+  title          String
+  description    String?
+  targetInPaise  Int
+  raisedInPaise  Int      @default(0)
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  club  Club            @relation(fields: [clubId], references: [id])
+  tasks VolunteerTask[]
+
+  @@index([clubId])
+}
+
+model VolunteerTask {
+  id           String     @id @default(uuid())
+  fundraiserId String
+  title        String
+  description  String?
+  deadline     DateTime?
+  status       TaskStatus @default(TODO)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  fundraiser  Fundraiser       @relation(fields: [fundraiserId], references: [id])
+  assignments TaskAssignment[]
+
+  @@index([fundraiserId])
+  @@index([status])
+}
+
+model TaskAssignment {
+  id        String     @id @default(uuid())
+  taskId    String
+  userId    String
+  status    TaskStatus @default(TODO)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  task VolunteerTask @relation(fields: [taskId], references: [id])
+  user User          @relation(fields: [userId], references: [id])
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+// ─── Expenses & Reimbursements ──────────────────────────
+
+model Expense {
+  id            String        @id @default(uuid())
+  userId        String
+  clubId        String?
+  fundraiserId  String?
+  description   String
+  amountInPaise Int
+  receiptUrl    String?
+  status        ExpenseStatus @default(SUBMITTED)
+  rejectionReason String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user          User           @relation(fields: [userId], references: [id])
+  reimbursement Reimbursement?
+
+  @@index([userId])
+  @@index([status])
+}
+
+model Reimbursement {
+  id            String   @id @default(uuid())
+  expenseId     String   @unique
+  approvedBy    String
+  amountInPaise Int
+  paidAt        DateTime?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  expense Expense @relation(fields: [expenseId], references: [id])
+}
+
+// ─── Financial Ledger ───────────────────────────────────
+
+model FinancialTransaction {
+  id             String            @id @default(uuid())
+  category       FinancialCategory
+  amountInPaise  Int
+  description    String
+  referenceType  String?
+  referenceId    String?
+  clubId         String?
+  date           DateTime          @default(now())
+  createdAt      DateTime          @default(now())
+
+  @@index([category])
+  @@index([date])
+  @@index([clubId])
+  @@index([referenceType, referenceId])
+}
+
+// ─── Audit Log ──────────────────────────────────────────
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  actorId    String?
+  action     String
+  resource   String
+  resourceId String?
+  details    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+}
+
+// ─── Dynamic Roles & Authorities ─────────────────────────
+
+model RoleAuthority {
+  id          String   @id @default(uuid())
+  role        String   @unique
+  authorities String[]
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserAuthority {
+  id        String   @id @default(uuid())
+  userId    String
+  authority String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, authority])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("ANNOUNCEMENT")
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
+}

@@ -1,0 +1,153 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 40 33% 94%;
+    --foreground: 228 27% 7%;
+    --card: 0 0% 100%;
+    --card-foreground: 228 27% 7%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 228 27% 7%;
+    --primary: 228 27% 7%;
+    --primary-foreground: 40 33% 94%;
+    --secondary: 40 25% 89%;
+    --secondary-foreground: 228 27% 7%;
+    --muted: 40 25% 89%;
+    --muted-foreground: 228 12% 40%;
+    --accent-h: 15 100% 55%;
+    --destructive: 4 71% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 35 20% 85%;
+    --input: 35 20% 82%;
+    --ring: 15 100% 55%;
+    --chart-1: 15 100% 55%;
+    --chart-2: 228 40% 25%;
+    --chart-3: 40 60% 60%;
+    --chart-4: 152 50% 40%;
+    --chart-5: 220 70% 55%;
+    --radius: 1rem;
+  }
+  * {
+    @apply border-border;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-paper text-ink font-sans antialiased;
+    font-optical-sizing: auto;
+  }
+  ::selection {
+    background: #ff4d1c;
+    color: #f6f2e9;
+  }
+  :focus-visible {
+    outline: 2px solid #ff4d1c;
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(11, 14, 23, 0.22);
+    border-radius: 8px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply font-mono text-[11px] font-medium uppercase tracking-[0.24em];
+  }
+  .rule-line {
+    @apply inline-block h-px w-10 bg-current align-middle opacity-60;
+  }
+  .noise {
+    position: relative;
+  }
+  .noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.045;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .skeleton-shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(11, 14, 23, 0.06) 25%,
+      rgba(11, 14, 23, 0.12) 50%,
+      rgba(11, 14, 23, 0.06) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+  }
+  .btn-press:not(:disabled):active {
+    transform: scale(0.97);
+  }
+  .btn-pop {
+    animation: pop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+.marquee-track {
+  animation: marquee 46s linear infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .marquee-track {
+    animation: none;
+  }
+  .skeleton-shimmer {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

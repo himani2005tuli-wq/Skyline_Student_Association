@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+.neon
+client/dist
+frontend/dist
+frontend/build
+test-main
+coverage

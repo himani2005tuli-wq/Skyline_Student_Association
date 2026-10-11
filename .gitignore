@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+
+# Environment & Secrets Vault
+.env
+.env.local
+.env.*.local
+vault.json
+**/secrets/vault.json
+!**/secrets/vault.example.json
+
+# Build output
+client/dist/
+frontend/dist/
+dist/
+server/dist/
+
+# Prisma
+server/prisma/migrations/**/migration_lock.toml
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pino-*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test coverage
+coverage/
+
+# Docker volumes
+pgdata/
+redis-data/
+
+# Uploads (dev)
+uploads/
+
+# k6 output
+k6-results/
+.neon
