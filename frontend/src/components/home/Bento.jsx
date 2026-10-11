@@ -28,7 +28,7 @@ function BentoCard({
     <Reveal className={className}>
       <div
         data-testid={testid}
-        className={`group flex h-full flex-col justify-between overflow-hidden rounded-3xl p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-lift ${
+        className={`flex h-full flex-col justify-between overflow-hidden rounded-3xl p-7 ${
           dark ? 'bg-ink text-paper' : 'border border-ink/10 bg-paper-card text-ink shadow-card'
         }`}
       >
@@ -42,7 +42,7 @@ function BentoCard({
             {link && (
               <Link
                 to={link}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-current opacity-40 transition group-hover:opacity-100 hover:bg-accent hover:text-white"
+                className="flex h-9 w-9 items-center justify-center rounded-full border border-current opacity-60 transition hover:bg-accent hover:text-white hover:opacity-100"
                 aria-label={title}
               >
                 <ArrowUpRight size={15} />
@@ -114,7 +114,6 @@ export default function Bento() {
               <SmartImage
                 src="https://images.unsplash.com/photo-1788629892553-cf85280ca421?q=80&w=1200&auto=format&fit=crop"
                 alt="Spring Gala crowd under stage lights"
-                hoverZoom
                 className="aspect-[16/7] w-full object-cover"
               />
             </div>
@@ -132,7 +131,6 @@ export default function Bento() {
               <SmartImage
                 src="https://images.unsplash.com/photo-1610582144787-eda2e6f293b4?q=80&w=1200&auto=format&fit=crop"
                 alt="Summit Hoodie"
-                hoverZoom
                 className="aspect-[16/8] w-full object-cover object-top"
               />
             </div>
@@ -150,7 +148,7 @@ export default function Bento() {
               {[38, 52, 44, 66, 58, 82].map((h, i) => (
                 <div
                   key={i}
-                  className={`flex-1 rounded-t-md transition-all duration-500 ${i === 5 ? 'bg-accent' : 'bg-ink/12 group-hover:bg-ink/20'}`}
+                  className={`flex-1 rounded-t-md ${i === 5 ? 'bg-accent' : 'bg-ink/12'}`}
                   style={{ height: `${h}%` }}
                 />
               ))}
@@ -166,12 +164,10 @@ export default function Bento() {
             testid="bento-tasks"
           >
             <div className="mt-6 space-y-2 text-[13px]">
-              {['Event planning', 'Volunteer coordination', 'Check-in signoff'].map((t, i) => (
+              {['Event planning', 'Volunteer coordination', 'Check-in signoff'].map((t) => (
                 <div key={t} className="flex items-center gap-2.5">
-                  <span
-                    className={`h-4 w-4 rounded-full border ${i < 2 ? 'border-accent bg-accent' : 'border-ink/25'}`}
-                  />
-                  <span className={i < 2 ? 'text-ink/40 line-through' : 'text-ink/70'}>{t}</span>
+                  <span className="h-4 w-4 rounded-full border border-accent bg-accent" />
+                  <span className="text-ink/80">{t}</span>
                 </div>
               ))}
             </div>
