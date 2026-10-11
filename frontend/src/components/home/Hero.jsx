@@ -1,18 +1,23 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
 import { ArrowRight, ArrowUpRight } from 'lucide-react';
 import HeroScene from '@/components/home/HeroScene';
 import { MaskLines, EASE } from '@/components/Reveal';
 import { CLUB } from '@/data/mock';
-
-const STATS = [
-  { value: '412', label: 'Active members' },
-  { value: '14', label: 'Events a year' },
-  { value: '\u20B96.2L', label: 'Managed per year' },
-  { value: '38', label: 'Volunteers' },
-];
+import { clubsApi, eventsApi, membershipsApi } from '@/api';
 
 export default function Hero() {
+  const { data: clubs = [] } = useQuery({ queryKey: ['clubs'], queryFn: clubsApi.list });
+  const { data: events = [] } = useQuery({ queryKey: ['events'], queryFn: eventsApi.list });
+  const { data: plans = [] } = useQuery({ queryKey: ['plans'], queryFn: membershipsApi.getPlans });
+
+  const stats = [
+    { value: `${clubs.length || 0}`, label: 'Active chapters' },
+    { value: `${events.length || 0}`, label: 'Events published' },
+    { value: `${Array.isArray(plans) ? plans.length : 0}`, label: 'Membership tiers' },
+    { value: '100%', label: 'Live ecosystem' },
+  ];
   return (
     <section
       className="noise relative flex min-h-[100svh] flex-col overflow-hidden bg-ink"
@@ -87,7 +92,7 @@ export default function Hero() {
           className="mx-auto grid max-w-7xl grid-cols-2 gap-y-6 px-5 py-7 md:grid-cols-4 lg:px-8"
           data-testid="hero-stats"
         >
-          {STATS.map((s, i) => (
+          {stats.map((s, i) => (
             <motion.div
               key={s.label}
               initial={{ opacity: 0, y: 14 }}

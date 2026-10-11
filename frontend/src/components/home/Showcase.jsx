@@ -144,11 +144,14 @@ export function MerchPreview() {
 export function FundraiserStrip() {
   const { data: fundraisers = [] } = useQuery({ queryKey: ['fundraisers'], queryFn: fundraisersApi.list });
   const activeF = fundraisers[0];
+  if (!activeF) return null;
+
   const f = {
-    title: activeF?.title || 'Winter Bake Sale',
-    goal: activeF?.targetAmountInPaise ? activeF.targetAmountInPaise / 100 : 50000,
-    raised: activeF?.currentAmountInPaise ? activeF.currentAmountInPaise / 100 : 36240,
-    desc: activeF?.description || 'Two hundred home-baked boxes, one very ambitious target — every rupee goes to the campus library fund.',
+    title: activeF.title,
+    goal: activeF.targetAmountInPaise ? activeF.targetAmountInPaise / 100 : 0,
+    raised: activeF.currentAmountInPaise ? activeF.currentAmountInPaise / 100 : 0,
+    desc: activeF.description || '',
+    image: activeF.imageUrl || 'https://images.unsplash.com/photo-1609185915416-cc61ad0a560d?q=80&w=1600&auto=format&fit=crop',
   };
 
   return (

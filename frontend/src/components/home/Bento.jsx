@@ -87,10 +87,10 @@ export default function Bento() {
           >
             <div className="mt-8 flex items-center gap-4 rounded-2xl border border-paper/10 bg-paper/5 p-4">
               <span className="flex h-10 w-10 items-center justify-center rounded-full bg-accent font-mono text-xs font-bold text-white">
-                412
+                Live
               </span>
               <div className="flex flex-1 flex-wrap gap-2">
-                {['Semester · 148', 'Annual · 236', 'Alumni · 28'].map((p) => (
+                {['Direct Enrollment', 'Automated Renewal', 'QR Verification'].map((p) => (
                   <span
                     key={p}
                     className="rounded-full border border-paper/15 px-3 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-paper/60"
@@ -166,7 +166,7 @@ export default function Bento() {
             testid="bento-tasks"
           >
             <div className="mt-6 space-y-2 text-[13px]">
-              {['Bake 40 boxes', 'Buy packaging', 'Morning stall shift'].map((t, i) => (
+              {['Event planning', 'Volunteer coordination', 'Check-in signoff'].map((t, i) => (
                 <div key={t} className="flex items-center gap-2.5">
                   <span
                     className={`h-4 w-4 rounded-full border ${i < 2 ? 'border-accent bg-accent' : 'border-ink/25'}`}

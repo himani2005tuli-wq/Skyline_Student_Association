@@ -9,7 +9,6 @@ export const CLUB = {
   product: 'Altitude',
   tagline: 'The club operating system',
   founded: 2019,
-  stats: { members: 412, eventsPerYear: 14, fundsManaged: '₹6.2L', volunteers: 38 },
 };
 
 export const IMAGES = {

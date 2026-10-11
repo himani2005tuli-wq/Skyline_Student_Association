@@ -13,21 +13,14 @@ export const publicApi = {
       return {
         id: f.id,
         title: f.title,
-        goal: (f.targetAmountInPaise || f.goalAmountInPaise || 500000) / 100,
-        raised: (f.currentAmountInPaise || 120000) / 100,
-        donors: 84,
-        daysLeft: 12,
+        goal: (f.targetAmountInPaise || f.goalAmountInPaise || 0) / 100,
+        raised: (f.currentAmountInPaise || 0) / 100,
+        donors: f.donorsCount || f._count?.donations || 0,
+        daysLeft: f.endDate ? Math.max(0, Math.ceil((new Date(f.endDate) - Date.now()) / (1000 * 60 * 60 * 24))) : null,
         desc: f.description,
       };
     }
-    return {
-      title: 'Winter Charity Bake Sale',
-      goal: 5000,
-      raised: 4200,
-      donors: 42,
-      daysLeft: 7,
-      desc: 'Annual fundraiser for community student tech scholarships.',
-    };
+    return null;
   },
 };
 

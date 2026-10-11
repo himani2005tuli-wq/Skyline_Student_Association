@@ -171,7 +171,7 @@ export function CtaBand() {
           className="max-w-2xl font-display text-4xl font-medium leading-[1.05] tracking-tight text-ink sm:text-5xl"
           data-testid="home-cta-headline"
         >
-          412 students already run their club here.{' '}
+          Everything your student club needs to thrive.{' '}
           <em className="font-light italic">Your turn.</em>
         </motion.h2>
         <div className="flex gap-3">

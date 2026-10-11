@@ -165,7 +165,9 @@ export const adminApi = {
   },
 
   async exportMembers() {
-    return { ok: true, rows: 412 };
+    const res = await http.get('/users?limit=1').catch(() => null);
+    const total = res?.data?.data?.total || res?.data?.data?.users?.length || 0;
+    return { ok: true, rows: total };
   },
 
   async inviteMember() {
