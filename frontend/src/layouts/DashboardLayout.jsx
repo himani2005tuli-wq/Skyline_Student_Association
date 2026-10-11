@@ -1,4 +1,4 @@
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import { NavLink, Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -169,7 +169,62 @@ function Topbar({ onMenu }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+  const autoCloseTimerRef = useRef(null);
   const crumbs = pathname.split('/').filter(Boolean);
+
+  const clearAutoClose = () => {
+    if (autoCloseTimerRef.current) {
+      clearTimeout(autoCloseTimerRef.current);
+      autoCloseTimerRef.current = null;
+    }
+  };
+
+  const startAutoClose = (duration = 5000) => {
+    clearAutoClose();
+    autoCloseTimerRef.current = setTimeout(() => {
+      setNotifOpen(false);
+    }, duration);
+  };
+
+  // Close notifications on click outside, escape key, and auto-close timer
+  useEffect(() => {
+    if (!notifOpen) {
+      clearAutoClose();
+      return;
+    }
+
+    // Auto-dismiss after 5s if user does not interact
+    startAutoClose(5000);
+
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setNotifOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('touchstart', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      clearAutoClose();
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [notifOpen]);
+
+  // Close when pathname changes
+  useEffect(() => {
+    setNotifOpen(false);
+  }, [pathname]);
 
   // Fetch real notifications from database
   const { data: notifData } = useQuery({
@@ -247,7 +302,14 @@ function Topbar({ onMenu }) {
           })}
         </nav>
       </div>
-      <div className="relative flex items-center gap-3">
+      <div
+        ref={notifRef}
+        className="relative flex items-center gap-3"
+        onMouseEnter={clearAutoClose}
+        onMouseLeave={() => {
+          if (notifOpen) startAutoClose(2500);
+        }}
+      >
         <button
           onClick={() => setNotifOpen(!notifOpen)}
           className="relative flex h-10 w-10 items-center justify-center rounded-full border border-ink/10 bg-paper-card text-ink/60 transition hover:text-ink focus:outline-hidden"
@@ -283,16 +345,26 @@ function Topbar({ onMenu }) {
                     </span>
                   )}
                 </div>
-                {unreadCount > 0 && (
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => markAllMutation.mutate()}
+                      disabled={markAllMutation.isPending}
+                      className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-dark hover:underline"
+                    >
+                      <CheckCheck size={12} /> Mark all read
+                    </button>
+                  )}
                   <button
                     type="button"
-                    onClick={() => markAllMutation.mutate()}
-                    disabled={markAllMutation.isPending}
-                    className="inline-flex items-center gap-1 text-[11px] font-semibold text-accent-dark hover:underline"
+                    onClick={() => setNotifOpen(false)}
+                    className="flex h-6 w-6 items-center justify-center rounded-full text-ink/40 transition hover:bg-ink/5 hover:text-ink"
+                    aria-label="Close notifications"
                   >
-                    <CheckCheck size={12} /> Mark all read
+                    <X size={14} />
                   </button>
-                )}
+                </div>
               </div>
 
               <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
