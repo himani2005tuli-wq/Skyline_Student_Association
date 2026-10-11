@@ -6,7 +6,8 @@ let socket = null;
 export function getSocket() {
   if (!socket) {
     const token = getStoredToken();
-    const backendUrl = import.meta.env.VITE_BACKEND_URL || '';
+    const rawBackendUrl = import.meta.env.VITE_BACKEND_URL || '';
+    const backendUrl = rawBackendUrl.trim().replace(/\/+$/, '');
 
     socket = io(backendUrl || window.location.origin, {
       path: '/socket.io',

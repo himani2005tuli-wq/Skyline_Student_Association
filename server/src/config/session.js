@@ -49,6 +49,6 @@ export const sessionMiddleware = session({
     maxAge: config.session.maxAge,
     secure: config.isProd, // HTTPS only in production
     httpOnly: true,
-    sameSite: 'lax', // Protect against CSRF but allow navigation
+    sameSite: process.env.SESSION_COOKIE_SAMESITE || (config.isProd ? 'none' : 'lax'),
   },
 });

@@ -1,44 +1,68 @@
 import { createContext, useContext, useMemo, useState, useCallback, useEffect } from 'react';
 import { authApi } from '@/api';
 import { updateSocketAuth } from '@/utils/socket';
+import { getStoredToken, setStoredToken } from '@/api/client';
 
-/* Real session context with automatic HttpOnly cookie restoration. */
+/* Real session context with automatic token and profile restoration across refresh. */
 const KEY = 'altitude.session';
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  });
+function getPersistedUser() {
+  try {
+    const raw = localStorage.getItem(KEY) || sessionStorage.getItem(KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
 
-  // Check backend session on initial load
+function persistUser(u) {
+  try {
+    if (u) {
+      const serialized = JSON.stringify(u);
+      localStorage.setItem(KEY, serialized);
+      sessionStorage.setItem(KEY, serialized);
+    } else {
+      localStorage.removeItem(KEY);
+      sessionStorage.removeItem(KEY);
+    }
+  } catch {}
+}
+
+export function AuthProvider({ children }) {
+  const [user, setUser] = useState(() => getPersistedUser());
+
+  // Check backend session on initial load / refresh
   useEffect(() => {
     let isMounted = true;
+    const token = getStoredToken();
+    const persisted = getPersistedUser();
+
+    // If neither token nor cached session exists, ensure logged out
+    if (!token && !persisted) {
+      setUser(null);
+      return;
+    }
+
     authApi
       .me()
       .then((freshUser) => {
         if (isMounted && freshUser) {
           setUser(freshUser);
-          try {
-            sessionStorage.setItem(KEY, JSON.stringify(freshUser));
-          } catch {}
+          persistUser(freshUser);
           updateSocketAuth();
         }
       })
-      .catch(() => {
-        if (isMounted) {
+      .catch((err) => {
+        // Only invalidate if backend explicitly returned 401 Unauthorized
+        if (isMounted && err?.response?.status === 401) {
           setUser(null);
-          try {
-            sessionStorage.removeItem(KEY);
-          } catch {}
+          persistUser(null);
+          setStoredToken(null);
           updateSocketAuth();
         }
       });
+
     return () => {
       isMounted = false;
     };
@@ -47,27 +71,24 @@ export function AuthProvider({ children }) {
   const login = useCallback(async (email, password) => {
     const u = await authApi.login(email, password);
     setUser(u);
-    try {
-      sessionStorage.setItem(KEY, JSON.stringify(u));
-    } catch {}
+    persistUser(u);
     updateSocketAuth();
     return u;
   }, []);
 
   const sessionLogin = useCallback((u) => {
     setUser(u);
-    try {
-      sessionStorage.setItem(KEY, JSON.stringify(u));
-    } catch {}
+    persistUser(u);
     updateSocketAuth();
   }, []);
 
   const logout = useCallback(async () => {
-    await authApi.logout();
-    setUser(null);
     try {
-      sessionStorage.removeItem(KEY);
+      await authApi.logout();
     } catch {}
+    setUser(null);
+    persistUser(null);
+    setStoredToken(null);
     updateSocketAuth();
   }, []);
 
@@ -75,9 +96,7 @@ export function AuthProvider({ children }) {
     setUser((u) => {
       if (!u) return u;
       const next = { ...u, points };
-      try {
-        sessionStorage.setItem(KEY, JSON.stringify(next));
-      } catch {}
+      persistUser(next);
       return next;
     });
   }, []);

@@ -21,9 +21,42 @@ if (config.isProd) {
 app.use(helmet());
 
 // ─── CORS ─────────────────────────────────────────────────
+const configuredOrigins = [
+  ...(config.security.corsOrigin || '').split(','),
+  config.clientUrl || '',
+  'http://localhost:5173',
+  'http://localhost:3000',
+]
+  .map((o) => o.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+
+const allowedOrigins = [...new Set(configuredOrigins)];
+
+export function isOriginAllowed(origin) {
+  if (!origin) return true;
+  const normalized = origin.replace(/\/+$/, '');
+  if (
+    config.isDev ||
+    allowedOrigins.includes(normalized) ||
+    allowedOrigins.includes('*') ||
+    /^https:\/\/.*\.vercel\.app$/.test(normalized) ||
+    /^https:\/\/.*\.railway\.app$/.test(normalized) ||
+    /^https:\/\/.*\.up\.railway\.app$/.test(normalized) ||
+    /^https:\/\/.*\.onrender\.com$/.test(normalized)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 app.use(
   cors({
-    origin: config.security.corsOrigin.split(',').map((o) => o.trim()),
+    origin: (origin, callback) => {
+      if (isOriginAllowed(origin)) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token'],

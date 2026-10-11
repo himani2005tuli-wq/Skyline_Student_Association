@@ -7,13 +7,34 @@ class SocketService {
   io = null;
 
   init(httpServer) {
-    const corsOrigins = (config.security?.corsOrigin || 'http://localhost:5173')
-      .split(',')
-      .map((o) => o.trim());
+    const configuredOrigins = [
+      ...(config.security?.corsOrigin || 'http://localhost:5173').split(','),
+      config.clientUrl || '',
+      'http://localhost:5173',
+    ]
+      .map((o) => o.trim().replace(/\/+$/, ''))
+      .filter(Boolean);
+
+    const corsOrigins = [...new Set(configuredOrigins)];
 
     this.io = new Server(httpServer, {
       cors: {
-        origin: corsOrigins,
+        origin: (origin, callback) => {
+          if (!origin) return callback(null, true);
+          const normalized = origin.replace(/\/+$/, '');
+          if (
+            config.isDev ||
+            corsOrigins.includes(normalized) ||
+            corsOrigins.includes('*') ||
+            /^https:\/\/.*\.vercel\.app$/.test(normalized) ||
+            /^https:\/\/.*\.railway\.app$/.test(normalized) ||
+            /^https:\/\/.*\.up\.railway\.app$/.test(normalized) ||
+            /^https:\/\/.*\.onrender\.com$/.test(normalized)
+          ) {
+            return callback(null, true);
+          }
+          return callback(null, false);
+        },
         credentials: true,
         methods: ['GET', 'POST'],
       },
