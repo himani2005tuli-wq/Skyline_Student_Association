@@ -10,6 +10,13 @@ import { notFoundHandler } from './middleware/notFound.js';
 import { csrfErrorHandler } from './middleware/auth.js';
 import routes from './routes/index.js';
 
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const uploadsDir = path.resolve(__dirname, '../uploads');
+
 const app = express();
 
 // ─── Trust proxy (for rate limiting behind Nginx/Docker) ──
@@ -18,7 +25,14 @@ if (config.isProd) {
 }
 
 // ─── Security headers ────────────────────────────────────
-app.use(helmet());
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  }),
+);
+
+// ─── Static uploads ──────────────────────────────────────
+app.use('/uploads', express.static(uploadsDir));
 
 // ─── CORS ─────────────────────────────────────────────────
 const configuredOrigins = [

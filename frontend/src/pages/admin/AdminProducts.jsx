@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -11,6 +11,10 @@ import {
   Sparkles,
   Layers,
   Image as ImageIcon,
+  Upload,
+  CheckCircle2,
+  Loader2,
+  X,
 } from 'lucide-react';
 import { adminApi, productsApi, clubsApi } from '@/api';
 import { Card } from '@/components/ui/Card';
@@ -21,29 +25,6 @@ import Modal from '@/components/ui/Modal';
 import { inr } from '@/lib/format';
 import { useConfirm } from '@/context/ConfirmContext';
 import { useAuth } from '@/context/AuthContext';
-
-const PRESET_IMAGES = [
-  {
-    label: 'Hoodie',
-    url: 'https://images.unsplash.com/photo-1610582144787-eda2e6f293b4?q=80&w=1200&auto=format&fit=crop',
-  },
-  {
-    label: 'T-Shirt',
-    url: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?q=80&w=1200&auto=format&fit=crop',
-  },
-  {
-    label: 'Cap',
-    url: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?q=80&w=1200&auto=format&fit=crop',
-  },
-  {
-    label: 'Tote Bag',
-    url: 'https://images.unsplash.com/photo-1544816155-12df9643f363?q=80&w=1200&auto=format&fit=crop',
-  },
-  {
-    label: 'Bottle',
-    url: 'https://images.unsplash.com/photo-1602143407151-7111542de6e8?q=80&w=1200&auto=format&fit=crop',
-  },
-];
 
 export default function AdminProducts() {
   const qc = useQueryClient();
@@ -76,7 +57,7 @@ export default function AdminProducts() {
     memberPrice: 399,
     category: 'Apparel',
     description: '',
-    imageUrl: PRESET_IMAGES[0].url,
+    imageUrl: '',
     variantType: 'sizes', // 'sizes' | 'standard'
     standardStock: 30,
     sizesStock: {
@@ -86,6 +67,56 @@ export default function AdminProducts() {
       XL: 10,
     },
   });
+
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleFileSelect = async (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG, WEBP, GIF)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    setSelectedFile(file);
+    const localUrl = URL.createObjectURL(file);
+    setPreviewUrl(localUrl);
+
+    // Upload immediately in background to obtain permanent server URL
+    setUploadingImage(true);
+    try {
+      const data = await productsApi.uploadImage(file);
+      if (data?.url) {
+        setForm((prev) => ({ ...prev, imageUrl: data.url }));
+        toast.success('Product image uploaded successfully');
+      }
+    } catch (err) {
+      console.warn('Pre-upload error, will re-attempt on submit:', err);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null);
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setPreviewUrl(null);
+    setForm((prev) => ({ ...prev, imageUrl: '' }));
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
 
   const save = async (p, s) => {
     const stock = Number(draft[`${p.id}-${s.label}`] ?? s.stock);
@@ -123,6 +154,15 @@ export default function AdminProducts() {
 
     setSubmitting(true);
     try {
+      let finalImageUrl = form.imageUrl;
+
+      // If user selected an image file and it's not yet uploaded, upload now
+      if (selectedFile && !finalImageUrl) {
+        setUploadingImage(true);
+        const uploadResult = await productsApi.uploadImage(selectedFile);
+        finalImageUrl = uploadResult?.url;
+      }
+
       let variants = [];
       if (form.variantType === 'sizes') {
         variants = Object.entries(form.sizesStock).map(([size, st]) => ({
@@ -146,7 +186,7 @@ export default function AdminProducts() {
         name: form.name.trim(),
         clubId: form.clubId || undefined,
         description: form.description.trim() || undefined,
-        imageUrl: form.imageUrl.trim() || undefined,
+        imageUrl: finalImageUrl || undefined,
         category: form.category,
         price: Number(form.price),
         memberPrice: Number(form.memberPrice),
@@ -155,6 +195,7 @@ export default function AdminProducts() {
 
       qc.invalidateQueries({ queryKey: ['products'] });
       toast.success(`"${form.name}" was successfully added to merchandise!`);
+      handleRemoveImage();
       setModalOpen(false);
 
       // Reset form
@@ -165,7 +206,7 @@ export default function AdminProducts() {
         memberPrice: 399,
         category: 'Apparel',
         description: '',
-        imageUrl: PRESET_IMAGES[0].url,
+        imageUrl: '',
         variantType: 'sizes',
         standardStock: 30,
         sizesStock: { S: 10, M: 15, L: 15, XL: 10 },
@@ -175,6 +216,7 @@ export default function AdminProducts() {
       toast.error(`Error: ${msg}`);
     } finally {
       setSubmitting(false);
+      setUploadingImage(false);
     }
   };
 
@@ -445,37 +487,114 @@ export default function AdminProducts() {
             />
           </div>
 
-          {/* Image URL with preset pills */}
+          {/* Merchandise Photo Upload */}
           <div>
-            <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
-              Product Image URL
-            </label>
-            <input
-              type="url"
-              placeholder="https://..."
-              value={form.imageUrl}
-              onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
-              className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white p-3 text-sm text-ink outline-none focus:border-accent"
-            />
-            <div className="mt-2 flex flex-wrap items-center gap-2">
-              <span className="font-mono text-[10px] uppercase tracking-wider text-ink/40">
-                Quick pick:
-              </span>
-              {PRESET_IMAGES.map((p) => (
-                <button
-                  type="button"
-                  key={p.label}
-                  onClick={() => setForm({ ...form, imageUrl: p.url })}
-                  className={`rounded-full border px-2.5 py-1 font-mono text-[11px] transition ${
-                    form.imageUrl === p.url
-                      ? 'border-ink bg-ink text-white font-bold'
-                      : 'border-ink/15 bg-paper/50 text-ink/70 hover:border-ink/40'
-                  }`}
-                >
-                  {p.label}
-                </button>
-              ))}
+            <div className="flex items-center justify-between">
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+                Merchandise Photo
+              </label>
+              {selectedFile && (
+                <span className="font-mono text-[11px] text-ink/40">
+                  {(selectedFile.size / 1024).toFixed(0)} KB
+                </span>
+              )}
             </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              data-testid="product-image-file-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleFileSelect(file);
+              }}
+            />
+
+            {previewUrl ? (
+              <div className="mt-2 relative overflow-hidden rounded-2xl border border-ink/15 bg-paper/40 p-3">
+                <div className="flex items-center gap-4">
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-ink/10 bg-white">
+                    <img
+                      src={previewUrl}
+                      alt="Product preview"
+                      className="h-full w-full object-cover"
+                    />
+                    {uploadingImage && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-ink/50 backdrop-blur-xs">
+                        <Loader2 size={18} className="animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-xs font-semibold text-ink">
+                      {selectedFile?.name || 'Uploaded photo'}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      {uploadingImage ? (
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] text-accent font-semibold">
+                          <Loader2 size={10} className="animate-spin" /> Uploading to server...
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] text-success font-semibold">
+                          <CheckCircle2 size={11} /> Ready to publish
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="rounded-lg border border-ink/15 bg-white px-3 py-1.5 font-mono text-xs font-semibold text-ink transition hover:border-accent hover:text-accent"
+                    >
+                      Change
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="rounded-lg p-1.5 text-ink/40 transition hover:bg-danger/10 hover:text-danger"
+                      title="Remove image"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setIsDragging(true);
+                }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition ${
+                  isDragging
+                    ? 'border-accent bg-accent/5 scale-[1.01]'
+                    : 'border-ink/15 bg-white hover:border-accent hover:bg-accent/5'
+                }`}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+                  <Upload size={22} />
+                </div>
+                <p className="mt-2 text-xs font-semibold text-ink">
+                  Click to browse or drag & drop photo
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] text-ink/40">
+                  PNG, JPG, WEBP, or GIF up to 10MB
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Sizing & Variants */}
