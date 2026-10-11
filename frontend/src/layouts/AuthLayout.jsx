@@ -37,13 +37,13 @@ export default function AuthLayout() {
         </div>
         <div className="relative z-10 flex gap-10 font-mono text-xs uppercase tracking-[0.18em] text-paper/45">
           <div>
-            <p className="text-2xl text-paper">{CLUB.stats.members}</p>members
+            <p className="text-2xl text-paper">Active</p>Membership OS
           </div>
           <div>
-            <p className="text-2xl text-paper">{CLUB.stats.eventsPerYear}</p>events a year
+            <p className="text-2xl text-paper">Direct</p>QR Check-in
           </div>
           <div>
-            <p className="text-2xl text-paper">{CLUB.stats.volunteers}</p>volunteers
+            <p className="text-2xl text-paper">Live</p>Audited Ledger
           </div>
         </div>
         <svg
