@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import cronService from '../../server/src/services/cron.service.js';
+import cronService from '../../src/services/cron.service.js';
 
 describe('Cron Notification Scheduling Service', () => {
   it('starts and manages background cron lifecycle', async () => {

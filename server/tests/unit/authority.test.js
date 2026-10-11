@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import authorityService, {
   SYSTEM_AUTHORITIES,
   DEFAULT_ROLE_AUTHORITIES,
-} from '../../server/src/services/authority.service.js';
+} from '../../src/services/authority.service.js';
 
 describe('Dynamic Role & Authority Service', () => {
   it('defines standard system authorities and default roles', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import request from 'supertest';
-import app from '../../server/src/app.js';
-import prisma from '../../server/src/config/database.js';
+import app from '../../src/app.js';
+import prisma from '../../src/config/database.js';
 import { cleanDatabase } from '../helpers/cleanDb.js';
 
 describe('Auth Integration', () => {

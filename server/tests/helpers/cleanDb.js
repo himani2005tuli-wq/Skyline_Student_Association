@@ -1,4 +1,4 @@
-import prisma from '../../server/src/config/database.js';
+import prisma from '../../src/config/database.js';
 
 export async function cleanDatabase() {
   await prisma.reimbursement.deleteMany();
