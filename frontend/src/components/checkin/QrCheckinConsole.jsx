@@ -249,8 +249,12 @@ export default function QrCheckinConsole({
 
   const startCamera = async () => {
     try {
-      await loadCameras();
       const { Html5Qrcode } = await import('html5-qrcode');
+      const devices = await Html5Qrcode.getCameras().catch(() => []);
+      if (devices && devices.length > 0) {
+        setCameras(devices);
+      }
+
       if (scannerRef.current) {
         try {
           await scannerRef.current.stop();
@@ -260,25 +264,38 @@ export default function QrCheckinConsole({
       const scanner = new Html5Qrcode(containerId);
       scannerRef.current = scanner;
 
-      const cameraIdOrConfig = selectedCameraId
-        ? { deviceId: { exact: selectedCameraId } }
-        : { facingMode: 'user' };
+      const targetCameraId =
+        selectedCameraId || (devices && devices.length > 0 ? devices[0].id : null);
 
-      await scanner.start(
-        cameraIdOrConfig,
-        { fps: 12, qrbox: { width: 230, height: 230 } },
-        async (decoded) => {
-          await scan(decoded);
-          // Briefly pause or continue
-        },
-        () => {}, // ignore frame errors
-      );
+      const qrConfig = { fps: 12, qrbox: { width: 230, height: 230 } };
+      const onScanSuccess = async (decoded) => {
+        await scan(decoded);
+      };
+
+      try {
+        if (targetCameraId) {
+          await scanner.start(targetCameraId, qrConfig, onScanSuccess, () => {});
+        } else {
+          await scanner.start({ facingMode: 'environment' }, qrConfig, onScanSuccess, () => {});
+        }
+      } catch (firstErr) {
+        // Fallback to user facing mode or first device ID
+        try {
+          await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, () => {});
+        } catch {
+          if (devices && devices.length > 0) {
+            await scanner.start(devices[0].id, qrConfig, onScanSuccess, () => {});
+          } else {
+            throw firstErr;
+          }
+        }
+      }
 
       setIsCameraActive(true);
       toast.success('Webcam scanner active. Hold ticket QR in front of camera.');
     } catch (err) {
       setIsCameraActive(false);
-      toast.error('Camera access failed or unavailable.', {
+      toast.error('Camera access failed or permission denied.', {
         description: 'You can use File Upload or Instant Search instead.',
       });
     }
@@ -371,7 +388,7 @@ export default function QrCheckinConsole({
           <button
             onClick={() => {
               setActiveMode('camera');
-              loadCameras();
+              startCamera();
             }}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
               activeMode === 'camera'
@@ -552,15 +569,16 @@ export default function QrCheckinConsole({
             {/* ── MODE 3: WEBCAM SCANNER ── */}
             {activeMode === 'camera' && (
               <div className="space-y-4">
-                <div
-                  id={containerId}
-                  className={`mx-auto flex aspect-[4/3] w-full max-w-sm items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-ink/20 bg-ink/[0.03] transition-all ${
-                    isMirrored ? '[&_video]:scale-x-[-1]' : ''
-                  }`}
-                  data-testid="qr-reader-region"
-                >
+                <div className="relative mx-auto aspect-[4/3] w-full max-w-sm overflow-hidden rounded-2xl border-2 border-dashed border-ink/20 bg-ink/[0.03]">
+                  {/* Dedicated html5-qrcode container with no React child nodes */}
+                  <div
+                    id={containerId}
+                    className={`h-full w-full ${isMirrored ? '[&_video]:scale-x-[-1]' : ''} ${!isCameraActive ? 'hidden' : 'block'}`}
+                    data-testid="qr-reader-region"
+                  />
+
                   {!isCameraActive && (
-                    <div className="p-6 text-center text-ink/40">
+                    <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center text-ink/40">
                       <ScanLine size={44} className="mx-auto text-accent-dark" />
                       <p className="mt-3 text-xs font-semibold text-ink/70">Laptop Camera Idle</p>
                       <p className="mt-1 text-[11px] text-ink/50 max-w-xs">

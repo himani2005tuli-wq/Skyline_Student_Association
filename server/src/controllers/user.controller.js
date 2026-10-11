@@ -45,10 +45,21 @@ export async function listUsers(req, res, next) {
         },
       });
       userClubId = u?.clubId || u?.memberships?.[0]?.plan?.clubId || null;
+    // Fallback: If club admin has no clubId, get their first active chapter
+    if (isClubAdmin && !userClubId) {
+      const firstClub = await prisma.club.findFirst({ where: { isActive: true } });
+      userClubId = firstClub?.id || null;
     }
 
     const targetClubId = isClubAdmin ? userClubId : queryClubId;
     const andConditions = [];
+
+    // Club Admin can only see members under their team / club, never Super Admin
+    if (isClubAdmin) {
+      andConditions.push({
+        role: { not: 'SUPER_ADMIN' },
+      });
+    }
 
     if (targetClubId) {
       andConditions.push({
@@ -56,6 +67,10 @@ export async function listUsers(req, res, next) {
           { clubId: targetClubId },
           { memberships: { some: { plan: { clubId: targetClubId } } } },
         ],
+      });
+    } else if (isClubAdmin) {
+      andConditions.push({
+        clubId: { not: null },
       });
     }
 
@@ -165,6 +180,13 @@ export async function updateUserRole(req, res, next) {
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {
       throw new NotFoundError('User not found');
+    }
+
+    if (req.user?.role !== 'SUPER_ADMIN' && normalizedRole === 'SUPER_ADMIN') {
+      throw new BadRequestError('Only Super Admins can promote someone to Super Admin');
+    }
+    if (user.role === 'SUPER_ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+      throw new BadRequestError('Only Super Admins can modify Super Admin accounts');
     }
 
     const updated = await authorityService.updateUserRole(id, normalizedRole);
@@ -386,6 +408,13 @@ export async function updateUser(req, res, next) {
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) throw new NotFoundError('User not found');
 
+    if (user.role === 'SUPER_ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+      throw new BadRequestError('Only Super Admins can edit Super Admin accounts');
+    }
+    if (role && role.toUpperCase() === 'SUPER_ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+      throw new BadRequestError('Only Super Admins can assign the Super Admin role');
+    }
+
     const updateData = {};
     if (firstName !== undefined) updateData.firstName = firstName.trim();
     if (lastName !== undefined) updateData.lastName = lastName.trim();
@@ -430,6 +459,13 @@ export async function deleteUser(req, res, next) {
     const { id } = req.params;
     if (req.user?.id === id) {
       throw new BadRequestError('You cannot delete your own account');
+    }
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundError('User not found');
+
+    if (user.role === 'SUPER_ADMIN' && req.user?.role !== 'SUPER_ADMIN') {
+      throw new BadRequestError('Only Super Admins can delete Super Admin accounts');
     }
 
     await prisma.user.delete({

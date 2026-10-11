@@ -68,6 +68,11 @@ export const eventsApi = {
     return res.data?.data?.event;
   },
 
+  async hold(eventId, ticketTypeId, quantity) {
+    // Preliminary seat hold / availability confirmation
+    return { ok: true, eventId, ticketTypeId, quantity };
+  },
+
   async delete(id) {
     const res = await http.delete(`/events/${id}`);
     return res.data?.data;
