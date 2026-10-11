@@ -9,7 +9,6 @@
   ],
   "scripts": {
     "start": "npm run start --workspace=server",
-    "postinstall": "npm run postinstall --workspace=server",
     "dev": "npm run dev --workspace=server",
     "frontend:dev": "npm run dev --workspace=frontend",
     "frontend:build": "npm run build --workspace=frontend",
@@ -45,6 +44,7 @@
   },
   "dependencies": {
     "@neon/config": "^1.8.6",
-    "@neon/env": "^1.5.3"
+    "@neon/env": "^1.5.3",
+    "prisma": "^6.6.0"
   }
 }
