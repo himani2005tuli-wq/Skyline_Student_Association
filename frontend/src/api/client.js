@@ -69,7 +69,13 @@ http.interceptors.request.use(
     const method = config.method?.toUpperCase();
     const isStateChanging = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method);
 
-    if (isStateChanging && !config.url?.includes('/auth/csrf')) {
+    const isPreAuth =
+      config.url?.includes('/auth/login') ||
+      config.url?.includes('/auth/register') ||
+      config.url?.includes('/auth/forgot-password') ||
+      config.url?.includes('/auth/reset-password');
+
+    if (isStateChanging && !config.url?.includes('/auth/csrf') && !isPreAuth) {
       if (!csrfTokenCache) {
         await fetchCsrfToken();
       }

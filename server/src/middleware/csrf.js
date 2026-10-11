@@ -44,5 +44,11 @@ export {
  */
 export const getCsrfToken = (req, res) => {
   const token = generateToken(req, true);
-  res.json({ success: true, data: { csrfToken: token } });
+  if (req.session && typeof req.session.save === 'function') {
+    req.session.save(() => {
+      res.json({ success: true, data: { csrfToken: token } });
+    });
+  } else {
+    res.json({ success: true, data: { csrfToken: token } });
+  }
 };

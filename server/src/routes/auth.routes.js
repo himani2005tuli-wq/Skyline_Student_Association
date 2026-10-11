@@ -30,20 +30,20 @@ const loginLimiter = rateLimit({
 // 1. Get CSRF token to include in headers of subsequent POST requests
 router.get('/csrf', getCsrfToken);
 
-// 2. Register new user (needs CSRF)
-router.post('/register', csrfSynchronisedProtection, register);
+// 2. Register new user
+router.post('/register', register);
 
-// 3. Login (needs CSRF + strict rate limit)
-router.post('/login', loginLimiter, csrfSynchronisedProtection, login);
+// 3. Login (strict rate limit)
+router.post('/login', loginLimiter, login);
 
 // 4. Password Recovery
-router.post('/forgot-password', csrfSynchronisedProtection, forgotPassword);
-router.post('/reset-password', csrfSynchronisedProtection, resetPassword);
+router.post('/forgot-password', forgotPassword);
+router.post('/reset-password', resetPassword);
 
 // ─── Authenticated routes ─────────────────────────────────
 
 // 4. Logout
-router.post('/logout', requireAuth, csrfSynchronisedProtection, logout);
+router.post('/logout', requireAuth, logout);
 
 // 5. Get current user
 router.get('/me', requireAuth, getMe);
