@@ -4,8 +4,10 @@ import { Ticket as TicketIcon, ScanLine } from 'lucide-react';
 import { ticketsApi, eventsApi } from '@/api';
 import { Card } from '@/components/ui/Card';
 import { Badge, StatusPill, EmptyState, DashboardSkeleton } from '@/components/ui/primitives';
+import Pagination from '@/components/ui/Pagination';
 import { SmartImage } from '@/components/ui/SmartImage';
 import { inr, fmtDate } from '@/lib/format';
+import { useState } from 'react';
 
 export default function MemberTickets() {
   const { data: tickets, isLoading } = useQuery({
@@ -13,8 +15,15 @@ export default function MemberTickets() {
     queryFn: ticketsApi.getMyTickets,
   });
   const { data: events } = useQuery({ queryKey: ['events'], queryFn: eventsApi.list });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(6);
 
   if (isLoading) return <DashboardSkeleton />;
+
+  const ticketList = tickets || [];
+  const totalPages = Math.max(1, Math.ceil(ticketList.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedTickets = ticketList.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="space-y-6" data-testid="member-tickets-page">
@@ -29,7 +38,7 @@ export default function MemberTickets() {
         </p>
       </div>
 
-      {(tickets || []).length === 0 ? (
+      {ticketList.length === 0 ? (
         <EmptyState
           icon={TicketIcon}
           title="No tickets yet"
@@ -37,8 +46,9 @@ export default function MemberTickets() {
           testid="tickets-empty"
         />
       ) : (
-        <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {(tickets || []).map((t) => {
+        <>
+          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+            {paginatedTickets.map((t) => {
             const ev = (events || []).find((e) => e.id === t.eventId);
             return (
               <Card key={t.ref} className="overflow-hidden" hover>
@@ -87,6 +97,24 @@ export default function MemberTickets() {
             );
           })}
         </div>
+
+          {ticketList.length > 0 && (
+            <div className="mt-8 rounded-3xl border border-ink/10 bg-paper-card px-6 py-2 shadow-card">
+              <Pagination
+                currentPage={safePage}
+                totalPages={totalPages}
+                totalItems={ticketList.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(sz) => {
+                  setPageSize(sz);
+                  setCurrentPage(1);
+                }}
+                summaryLabel="tickets"
+              />
+            </div>
+          )}
+        </>
       )}
     </div>
   );

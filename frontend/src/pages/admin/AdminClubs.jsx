@@ -15,11 +15,13 @@ import {
   Package,
   Layers,
   Sparkles,
+  Search,
 } from 'lucide-react';
 import { clubsApi, systemApi } from '@/api';
 import { Card } from '@/components/ui/Card';
 import { Badge, EmptyState, DashboardSkeleton, StatusPill } from '@/components/ui/primitives';
 import Modal from '@/components/ui/Modal';
+import Pagination from '@/components/ui/Pagination';
 import { useConfirm } from '@/context/ConfirmContext';
 import { useAuth } from '@/context/AuthContext';
 
@@ -48,6 +50,9 @@ export default function AdminClubs() {
     isActive: true,
   });
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   const openCreate = () => {
     setForm({
@@ -128,6 +133,20 @@ export default function AdminClubs() {
 
   if (isLoading) return <DashboardSkeleton />;
 
+  const filteredClubs = clubs.filter((c) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.slug || '').toLowerCase().includes(q) ||
+      (c.description || '').toLowerCase().includes(q)
+    );
+  });
+
+  const totalPages = Math.max(1, Math.ceil(filteredClubs.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedClubs = filteredClubs.slice((safePage - 1) * pageSize, safePage * pageSize);
+
   return (
     <div className="space-y-6" data-testid="admin-clubs-page">
       {/* Page Header */}
@@ -155,8 +174,30 @@ export default function AdminClubs() {
         )}
       </div>
 
+      {/* Search Bar */}
+      <div className="flex items-center justify-between gap-4 border-b border-ink/8 pb-4">
+        <div className="relative min-w-56 flex-1 sm:max-w-xs">
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/35"
+          />
+          <input
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
+            placeholder="Search chapters or slugs…"
+            className="h-10 w-full rounded-full border border-ink/15 bg-paper-card pl-10 pr-4 text-sm outline-none transition focus:border-accent focus:ring-2 focus:ring-accent/20"
+          />
+        </div>
+        <span className="font-mono text-xs text-ink/45">
+          {filteredClubs.length} chapter{filteredClubs.length !== 1 ? 's' : ''} found
+        </span>
+      </div>
+
       {/* Clubs Grid */}
-      {clubs.length === 0 ? (
+      {filteredClubs.length === 0 ? (
         <EmptyState
           icon={Building2}
           title="No clubs registered"
@@ -164,7 +205,7 @@ export default function AdminClubs() {
         />
       ) : (
         <div className="grid gap-6 md:grid-cols-2">
-          {clubs.map((club) => {
+          {paginatedClubs.map((club) => {
             const eventsCount = club._count?.events || 0;
             const plansCount = club._count?.membershipPlans || 0;
             const bulletinsCount = club._count?.announcements || 0;
@@ -251,6 +292,23 @@ export default function AdminClubs() {
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {filteredClubs.length > 0 && (
+        <div className="rounded-2xl border border-ink/10 bg-paper-card px-5 py-2 shadow-sm">
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            totalItems={filteredClubs.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setCurrentPage(1);
+            }}
+            summaryLabel="chapters"
+          />
         </div>
       )}
 
