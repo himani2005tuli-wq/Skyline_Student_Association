@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus, Pin, Clock, Bell, Trash2, Play } from 'lucide-react';
+import { Plus, Pin, Clock, Bell, Trash2, Play, Pencil } from 'lucide-react';
 import { adminApi, publicApi, communicationApi, clubsApi } from '@/api';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
@@ -43,6 +43,52 @@ export default function AdminAnnouncements() {
   const [pushOpen, setPushOpen] = useState(false);
   const [targetClubId, setTargetClubId] = useState('platform');
   const [pushTargetClubId, setPushTargetClubId] = useState('platform');
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingAnnouncement, setEditingAnnouncement] = useState(null);
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    formState: { errors: editErrors, isSubmitting: isEditSubmitting },
+  } = useForm({
+    resolver: zodResolver(annSchema),
+  });
+
+  const handleOpenEdit = (ann) => {
+    setEditingAnnouncement(ann);
+    resetEdit({
+      title: ann.title || '',
+      category: ann.category || 'General',
+      body: ann.body || ann.content || '',
+      pinned: ann.pinned || false,
+      channelEmail: true,
+      channelInApp: true,
+      channelWhatsApp: false,
+    });
+    setEditOpen(true);
+  };
+
+  const onEditSubmit = async (payload) => {
+    if (!editingAnnouncement) return;
+    try {
+      await communicationApi.updateAnnouncement(editingAnnouncement.id, {
+        title: payload.title,
+        body: payload.body,
+        content: payload.body,
+        audience: {
+          category: payload.category,
+          pinned: payload.pinned,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ['announcements'] });
+      toast.success('Announcement updated successfully.');
+      setEditOpen(false);
+      setEditingAnnouncement(null);
+    } catch (err) {
+      toast.error(err.friendly || err.message || 'Failed to update announcement');
+    }
+  };
 
   const { data = [], isLoading } = useQuery({
     queryKey: ['announcements'],
@@ -335,24 +381,34 @@ export default function AdminAnnouncements() {
             key: 'actions',
             label: '',
             render: (r) => (
-              <button
-                type="button"
-                onClick={async () => {
-                  const ok = await confirm({
-                    title: 'Delete Announcement',
-                    description: `Are you sure you want to delete "${r.title}"? This cannot be undone.`,
-                    confirmText: 'Delete Announcement',
-                    tone: 'danger',
-                  });
-                  if (ok) {
-                    deleteAnnouncementMutation.mutate(r.id);
-                  }
-                }}
-                title="Delete announcement"
-                className="p-1.5 text-danger hover:bg-danger/10 rounded-lg transition"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => handleOpenEdit(r)}
+                  title="Edit announcement"
+                  className="p-1.5 text-ink/40 hover:text-ink hover:bg-ink/5 rounded-lg transition"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Delete Announcement',
+                      description: `Are you sure you want to delete "${r.title}"? This cannot be undone.`,
+                      confirmText: 'Delete Announcement',
+                      tone: 'danger',
+                    });
+                    if (ok) {
+                      deleteAnnouncementMutation.mutate(r.id);
+                    }
+                  }}
+                  title="Delete announcement"
+                  className="p-1.5 text-danger hover:bg-danger/10 rounded-lg transition"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
             ),
           },
         ]}
@@ -585,6 +641,71 @@ export default function AdminAnnouncements() {
             </Button>
             <Button type="submit" loading={isPushSubmitting}>
               Send Push Alert
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Announcement Modal */}
+      <Modal
+        open={editOpen}
+        onClose={() => {
+          setEditOpen(false);
+          setEditingAnnouncement(null);
+        }}
+        title="Edit Announcement"
+        testid="edit-announcement-modal"
+      >
+        <form onSubmit={handleEditSubmit(onEditSubmit)} className="space-y-4">
+          <Field label="Subject / Headline" error={editErrors.title?.message}>
+            <Input
+              placeholder="e.g., Campus Center renovations scheduled"
+              {...registerEdit('title')}
+            />
+          </Field>
+
+          <Field label="Category" error={editErrors.category?.message}>
+            <Select {...registerEdit('category')}>
+              <option value="">Select category…</option>
+              <option value="Governance">Governance</option>
+              <option value="Events">Events</option>
+              <option value="Facilities">Facilities</option>
+              <option value="Elections">Elections</option>
+              <option value="Emergency">Emergency</option>
+              <option value="General">General</option>
+            </Select>
+          </Field>
+
+          <Field label="Content / Body" error={editErrors.body?.message}>
+            <Textarea
+              rows={4}
+              placeholder="Write the full text of your announcement…"
+              {...registerEdit('body')}
+            />
+          </Field>
+
+          <label className="flex items-center gap-2 cursor-pointer pt-1">
+            <input
+              type="checkbox"
+              className="rounded border-line text-accent focus:ring-accent"
+              {...registerEdit('pinned')}
+            />
+            <span className="text-sm font-medium text-ink">Pin this announcement to top</span>
+          </label>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setEditOpen(false);
+                setEditingAnnouncement(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" loading={isEditSubmitting}>
+              Save Changes
             </Button>
           </div>
         </form>

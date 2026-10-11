@@ -323,3 +323,122 @@ export async function updateRoleAuthorities(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * Admin create new user
+ */
+export async function createUser(req, res, next) {
+  try {
+    const { email, password, firstName, lastName, phone, role, clubId } = req.body;
+    if (!email || !password || !firstName || !lastName) {
+      throw new BadRequestError('Email, password, first name, and last name are required');
+    }
+
+    const existing = await prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    });
+    if (existing) {
+      throw new BadRequestError('A user with this email already exists');
+    }
+
+    const bcrypt = await import('bcrypt');
+    const passwordHash = await bcrypt.default.hash(password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email: email.toLowerCase().trim(),
+        passwordHash,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phone: phone ? phone.trim() : null,
+        role: role && VALID_ROLES.includes(role.toUpperCase()) ? role.toUpperCase() : 'MEMBER',
+        clubId: clubId || null,
+        emailVerified: true,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        clubId: true,
+        isActive: true,
+        createdAt: true,
+        club: { select: { id: true, name: true, slug: true } },
+      },
+    });
+
+    res.status(201).json({ success: true, data: { user } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Admin update user details
+ */
+export async function updateUser(req, res, next) {
+  try {
+    const { id } = req.params;
+    const { firstName, lastName, phone, role, clubId, isActive, password } = req.body;
+
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) throw new NotFoundError('User not found');
+
+    const updateData = {};
+    if (firstName !== undefined) updateData.firstName = firstName.trim();
+    if (lastName !== undefined) updateData.lastName = lastName.trim();
+    if (phone !== undefined) updateData.phone = phone ? phone.trim() : null;
+    if (role && VALID_ROLES.includes(role.toUpperCase())) updateData.role = role.toUpperCase();
+    if (clubId !== undefined) updateData.clubId = clubId || null;
+    if (isActive !== undefined) updateData.isActive = Boolean(isActive);
+
+    if (password && password.trim() !== '') {
+      const bcrypt = await import('bcrypt');
+      updateData.passwordHash = await bcrypt.default.hash(password, 10);
+    }
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: updateData,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        role: true,
+        clubId: true,
+        isActive: true,
+        createdAt: true,
+        club: { select: { id: true, name: true, slug: true } },
+      },
+    });
+
+    res.json({ success: true, data: { user: updated } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Admin delete user
+ */
+export async function deleteUser(req, res, next) {
+  try {
+    const { id } = req.params;
+    if (req.user?.id === id) {
+      throw new BadRequestError('You cannot delete your own account');
+    }
+
+    await prisma.user.delete({
+      where: { id },
+    });
+
+    res.json({ success: true, data: { deleted: true } });
+  } catch (err) {
+    next(err);
+  }
+}
+

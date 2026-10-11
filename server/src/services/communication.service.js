@@ -296,6 +296,26 @@ class CommunicationService {
   }
 
   /**
+   * Update an existing announcement.
+   */
+  async updateAnnouncement(id, data) {
+    const updateData = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.content !== undefined) updateData.content = data.content;
+    if (data.body !== undefined && !data.content) updateData.content = data.body;
+    if (data.isPublished !== undefined) updateData.isPublished = data.isPublished;
+    if (data.audience !== undefined) updateData.audience = data.audience;
+
+    return prisma.announcement.update({
+      where: { id },
+      data: updateData,
+      include: {
+        club: { select: { id: true, name: true, slug: true } },
+      },
+    });
+  }
+
+  /**
    * Permanently delete any announcement (published or draft) with cascading deliveries.
    */
   async deleteAnnouncement(id) {
