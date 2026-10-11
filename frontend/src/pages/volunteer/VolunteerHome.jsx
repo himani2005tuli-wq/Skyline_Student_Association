@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/Button';
 import Modal from '@/components/ui/Modal';
 import { Field, Input, Textarea, Select } from '@/components/ui/Field';
 import { Badge, StatusPill, Tabs, DashboardSkeleton } from '@/components/ui/primitives';
+import Pagination from '@/components/ui/Pagination';
 import { inr, fmtDate } from '@/lib/format';
 
 function isTaskOverdue(task) {
@@ -160,6 +161,12 @@ export default function VolunteerHome() {
   const [modal, setModal] = useState(false);
   const [filter, setFilter] = useState('all');
   const [actionTaskId, setActionTaskId] = useState(null);
+  const [expPage, setExpPage] = useState(1);
+  const [expPageSize, setExpPageSize] = useState(5);
+
+  const totalExpPages = Math.max(1, Math.ceil(myExpenses.length / expPageSize));
+  const safeExpPage = Math.min(expPage, totalExpPages);
+  const paginatedExpenses = myExpenses.slice((safeExpPage - 1) * expPageSize, safeExpPage * expPageSize);
 
   if (isLoading) return <DashboardSkeleton />;
 
@@ -556,32 +563,47 @@ export default function VolunteerHome() {
               No reimbursement claims submitted yet. Use "Submit an expense" above to file a claim.
             </p>
           ) : (
-            <div className="space-y-2.5" data-testid="volunteer-expenses-list">
-              {myExpenses.map((exp) => (
-                <div
-                  key={exp.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink/8 bg-paper p-3 text-xs"
-                >
-                  <div className="space-y-0.5">
-                    <p className="font-semibold text-ink">{exp.description}</p>
-                    <p className="font-mono text-[11px] text-ink/40">
-                      Submitted {fmtDate(exp.createdAt)}
-                    </p>
-                    {exp.rejectionReason && (
-                      <p className="text-[11px] text-danger font-medium">
-                        Reason: {exp.rejectionReason}
+            <>
+              <div className="space-y-2.5" data-testid="volunteer-expenses-list">
+                {paginatedExpenses.map((exp) => (
+                  <div
+                    key={exp.id}
+                    className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink/8 bg-paper p-3 text-xs"
+                  >
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-ink">{exp.description}</p>
+                      <p className="font-mono text-[11px] text-ink/40">
+                        Submitted {fmtDate(exp.createdAt)}
                       </p>
-                    )}
+                      {exp.rejectionReason && (
+                        <p className="text-[11px] text-danger font-medium">
+                          Reason: {exp.rejectionReason}
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="font-mono text-sm font-bold text-ink">
+                        {inr(exp.amountInPaise / 100)}
+                      </span>
+                      <StatusPill status={exp.status} />
+                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-sm font-bold text-ink">
-                      {inr(exp.amountInPaise / 100)}
-                    </span>
-                    <StatusPill status={exp.status} />
-                  </div>
+                ))}
+              </div>
+
+              {myExpenses.length > expPageSize && (
+                <div className="mt-3 border-t border-ink/8 pt-2">
+                  <Pagination
+                    currentPage={safeExpPage}
+                    totalPages={totalExpPages}
+                    totalItems={myExpenses.length}
+                    pageSize={expPageSize}
+                    onPageChange={setExpPage}
+                    summaryLabel="claims"
+                  />
                 </div>
-              ))}
-            </div>
+              )}
+            </>
           )}
         </div>
       </Card>

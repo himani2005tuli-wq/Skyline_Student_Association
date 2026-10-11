@@ -45,6 +45,8 @@ export async function listUsers(req, res, next) {
         },
       });
       userClubId = u?.clubId || u?.memberships?.[0]?.plan?.clubId || null;
+    }
+
     // Fallback: If club admin has no clubId, get their first active chapter
     if (isClubAdmin && !userClubId) {
       const firstClub = await prisma.club.findFirst({ where: { isActive: true } });

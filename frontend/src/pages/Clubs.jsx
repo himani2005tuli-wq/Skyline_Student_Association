@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { clubsApi } from '@/api';
 import { Badge, Skeleton, EmptyState } from '@/components/ui/primitives';
+import Pagination from '@/components/ui/Pagination';
 import { Reveal } from '@/components/Reveal';
 
 const CATEGORIES = [
@@ -169,6 +170,8 @@ export default function Clubs() {
 
   const [search, setSearch] = useState('');
   const [selectedCat, setSelectedCat] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(9);
 
   const filteredClubs = useMemo(() => {
     return clubs.filter((c) => {
@@ -182,6 +185,10 @@ export default function Clubs() {
       return matchesCategory && matchesSearch;
     });
   }, [clubs, selectedCat, search]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredClubs.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedClubs = filteredClubs.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const totalEvents = useMemo(
     () => clubs.reduce((acc, c) => acc + (c._count?.events || 0), 0),
@@ -247,7 +254,10 @@ export default function Clubs() {
           {CATEGORIES.map((cat) => (
             <button
               key={cat}
-              onClick={() => setSelectedCat(cat)}
+              onClick={() => {
+                setSelectedCat(cat);
+                setCurrentPage(1);
+              }}
               data-testid={`category-filter-${cat.toLowerCase().replace(/[^a-z]+/g, '-')}`}
               className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition ${
                 selectedCat === cat
@@ -269,14 +279,20 @@ export default function Clubs() {
           <input
             type="text"
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search clubs or keywords…"
             data-testid="clubs-search-input"
             className="w-full rounded-full border border-ink/15 bg-paper-card py-2.5 pl-10 pr-4 text-sm text-ink placeholder:text-ink/40 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           />
           {search && (
             <button
-              onClick={() => setSearch('')}
+              onClick={() => {
+                setSearch('');
+                setCurrentPage(1);
+              }}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-ink/40 hover:text-ink"
             >
               ✕
@@ -313,11 +329,28 @@ export default function Clubs() {
             }
           />
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredClubs.map((club, idx) => (
-              <ClubCard key={club.id} club={club} index={idx} />
-            ))}
-          </div>
+          <>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {paginatedClubs.map((club, idx) => (
+                <ClubCard key={club.id} club={club} index={idx} />
+              ))}
+            </div>
+
+            <div className="mt-10 rounded-3xl border border-ink/10 bg-paper-card px-6 py-2 shadow-card">
+              <Pagination
+                currentPage={safePage}
+                totalPages={totalPages}
+                totalItems={filteredClubs.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(sz) => {
+                  setPageSize(sz);
+                  setCurrentPage(1);
+                }}
+                summaryLabel="chapters"
+              />
+            </div>
+          </>
         )}
       </div>
 

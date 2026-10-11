@@ -9,6 +9,7 @@ import { Badge, Skeleton } from '@/components/ui/primitives';
 import { Button } from '@/components/ui/Button';
 import { SmartImage } from '@/components/ui/SmartImage';
 import Modal from '@/components/ui/Modal';
+import Pagination from '@/components/ui/Pagination';
 import { inr } from '@/lib/format';
 
 function ProductModal({ product, onClose }) {
@@ -112,6 +113,13 @@ function ProductModal({ product, onClose }) {
 export default function Store() {
   const { data, isLoading } = useQuery({ queryKey: ['products'], queryFn: productsApi.list });
   const [active, setActive] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(9);
+
+  const products = data || [];
+  const totalPages = Math.max(1, Math.ceil(products.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedProducts = products.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-28 lg:px-8" data-testid="store-page">
@@ -132,51 +140,70 @@ export default function Store() {
           ))}
         </div>
       ) : (
-        <div
-          className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6"
-          data-testid="store-grid"
-        >
-          {data.map((p) => {
-            const total = p.sizes.reduce((s, x) => s + x.stock, 0);
-            const low = p.sizes.some((s) => s.stock > 0 && s.stock <= 3);
-            return (
-              <button
-                key={p.id}
-                onClick={() => setActive(p)}
-                data-testid={`store-product-${p.id}`}
-                className="group overflow-hidden rounded-3xl border border-ink/10 bg-paper-card text-left shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lift"
-              >
-                <div className="relative">
-                  <SmartImage
-                    src={p.image}
-                    alt={p.name}
-                    hoverZoom
-                    className="aspect-square w-full object-cover"
-                  />
-                  {low && (
-                    <span className="absolute left-3 top-3">
-                      <Badge tone="warning">Low stock</Badge>
-                    </span>
-                  )}
-                  {total === 0 && (
-                    <span className="absolute left-3 top-3">
-                      <Badge tone="danger">Sold out</Badge>
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center justify-between gap-2 p-3 sm:p-4 lg:p-5">
-                  <div className="min-w-0">
-                    <h3 className="truncate text-sm font-bold text-ink lg:text-base">{p.name}</h3>
-                    <p className="mt-0.5 font-mono text-xs text-ink/50">{inr(p.price)}</p>
+        <>
+          <div
+            className="mt-12 grid grid-cols-2 gap-4 lg:grid-cols-3 lg:gap-6"
+            data-testid="store-grid"
+          >
+            {paginatedProducts.map((p) => {
+              const total = p.sizes.reduce((s, x) => s + x.stock, 0);
+              const low = p.sizes.some((s) => s.stock > 0 && s.stock <= 3);
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => setActive(p)}
+                  data-testid={`store-product-${p.id}`}
+                  className="group overflow-hidden rounded-3xl border border-ink/10 bg-paper-card text-left shadow-card transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lift"
+                >
+                  <div className="relative">
+                    <SmartImage
+                      src={p.image}
+                      alt={p.name}
+                      hoverZoom
+                      className="aspect-square w-full object-cover"
+                    />
+                    {low && (
+                      <span className="absolute left-3 top-3">
+                        <Badge tone="warning">Low stock</Badge>
+                      </span>
+                    )}
+                    {total === 0 && (
+                      <span className="absolute left-3 top-3">
+                        <Badge tone="danger">Sold out</Badge>
+                      </span>
+                    )}
                   </div>
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 text-ink transition group-hover:bg-accent group-hover:text-white">
-                    <Plus size={15} />
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
+                  <div className="flex items-center justify-between gap-2 p-3 sm:p-4 lg:p-5">
+                    <div className="min-w-0">
+                      <h3 className="truncate text-sm font-bold text-ink lg:text-base">{p.name}</h3>
+                      <p className="mt-0.5 font-mono text-xs text-ink/50">{inr(p.price)}</p>
+                    </div>
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-ink/15 text-ink transition group-hover:bg-accent group-hover:text-white">
+                      <Plus size={15} />
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          {products.length > 0 && (
+            <div className="mt-10 rounded-3xl border border-ink/10 bg-paper-card px-6 py-2 shadow-card">
+              <Pagination
+                currentPage={safePage}
+                totalPages={totalPages}
+                totalItems={products.length}
+                pageSize={pageSize}
+                onPageChange={setCurrentPage}
+                onPageSizeChange={(sz) => {
+                  setPageSize(sz);
+                  setCurrentPage(1);
+                }}
+                summaryLabel="items"
+              />
+            </div>
+          )}
+        </>
       )}
       {active && <ProductModal product={active} onClose={() => setActive(null)} />}
     </div>

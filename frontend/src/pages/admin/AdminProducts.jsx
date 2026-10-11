@@ -23,6 +23,7 @@ import { Button } from '@/components/ui/Button';
 import { Badge, EmptyState, DashboardSkeleton } from '@/components/ui/primitives';
 import { SmartImage } from '@/components/ui/SmartImage';
 import Modal from '@/components/ui/Modal';
+import Pagination from '@/components/ui/Pagination';
 import { inr } from '@/lib/format';
 import { useConfirm } from '@/context/ConfirmContext';
 import { useAuth } from '@/context/AuthContext';
@@ -49,6 +50,8 @@ export default function AdminProducts() {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [clubFilter, setClubFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   // Form state for creating a product
   const [form, setForm] = useState({
@@ -372,6 +375,10 @@ export default function AdminProducts() {
       ? data
       : data.filter((p) => p.clubId === clubFilter || p.club?.slug === clubFilter);
 
+  const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedProducts = filteredProducts.slice((safePage - 1) * pageSize, safePage * pageSize);
+
   return (
     <div className="space-y-6" data-testid="admin-products-page">
       {/* Header and Add Button */}
@@ -410,7 +417,10 @@ export default function AdminProducts() {
           </span>
           <select
             value={clubFilter}
-            onChange={(e) => setClubFilter(e.target.value)}
+            onChange={(e) => {
+              setClubFilter(e.target.value);
+              setCurrentPage(1);
+            }}
             className="rounded-xl border border-ink/15 bg-paper-card px-3 py-1.5 font-mono text-xs font-semibold text-ink outline-none focus:border-accent"
           >
             <option value="all">All Chapters ({data.length})</option>
@@ -440,7 +450,7 @@ export default function AdminProducts() {
         />
       ) : (
         <div className="grid gap-5 lg:grid-cols-2">
-          {filteredProducts.map((p) => (
+          {paginatedProducts.map((p) => (
             <Card key={p.id} className="p-5 relative" data-testid={`admin-product-${p.id}`}>
               <div className="flex gap-5">
                 <SmartImage
@@ -531,6 +541,23 @@ export default function AdminProducts() {
               </div>
             </Card>
           ))}
+        </div>
+      )}
+
+      {filteredProducts.length > 0 && (
+        <div className="rounded-2xl border border-ink/10 bg-paper-card px-5 py-2 shadow-sm">
+          <Pagination
+            currentPage={safePage}
+            totalPages={totalPages}
+            totalItems={filteredProducts.length}
+            pageSize={pageSize}
+            onPageChange={setCurrentPage}
+            onPageSizeChange={(sz) => {
+              setPageSize(sz);
+              setCurrentPage(1);
+            }}
+            summaryLabel="products"
+          />
         </div>
       )}
 

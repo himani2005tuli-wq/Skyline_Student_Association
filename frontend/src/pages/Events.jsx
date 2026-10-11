@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { CalendarDays, MapPin, ArrowUpRight, Search } from 'lucide-react';
 import { eventsApi } from '@/api';
 import { Badge, Skeleton, EmptyState } from '@/components/ui/primitives';
+import Pagination from '@/components/ui/Pagination';
 import { inr, fmtDate } from '@/lib/format';
 import { SmartImage } from '@/components/ui/SmartImage';
 
@@ -74,6 +75,8 @@ export default function Events() {
   const [cat, setCat] = useState('All');
   const [when, setWhen] = useState('all');
   const [sort, setSort] = useState('date');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(9);
 
   const cats = useMemo(() => ['All', ...new Set((data || []).map((e) => e.category))], [data]);
   const list = useMemo(() => {
@@ -88,6 +91,10 @@ export default function Events() {
     else l = [...l].sort((a, b) => new Date(a.date) - new Date(b.date));
     return l;
   }, [data, q, cat, when, sort]);
+
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedEvents = list.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   return (
     <div className="mx-auto max-w-7xl px-5 pb-24 pt-28 lg:px-8" data-testid="events-page">
@@ -110,7 +117,10 @@ export default function Events() {
           />
           <input
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setCurrentPage(1);
+            }}
             placeholder="Search events…"
             aria-label="Search events"
             data-testid="events-search-input"
@@ -119,7 +129,10 @@ export default function Events() {
         </div>
         <select
           value={when}
-          onChange={(e) => setWhen(e.target.value)}
+          onChange={(e) => {
+            setWhen(e.target.value);
+            setCurrentPage(1);
+          }}
           aria-label="Filter by date"
           data-testid="events-date-filter"
           className="h-11 rounded-full border border-ink/15 bg-paper-card px-5 text-sm font-medium outline-none focus:border-accent"
@@ -130,7 +143,10 @@ export default function Events() {
         </select>
         <select
           value={sort}
-          onChange={(e) => setSort(e.target.value)}
+          onChange={(e) => {
+            setSort(e.target.value);
+            setCurrentPage(1);
+          }}
           aria-label="Sort events"
           data-testid="events-sort"
           className="h-11 rounded-full border border-ink/15 bg-paper-card px-5 text-sm font-medium outline-none focus:border-accent"
@@ -143,7 +159,10 @@ export default function Events() {
         {cats.map((c) => (
           <button
             key={c}
-            onClick={() => setCat(c)}
+            onClick={() => {
+              setCat(c);
+              setCurrentPage(1);
+            }}
             data-testid={`events-category-${c.toLowerCase()}`}
             className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition ${cat === c ? 'border-ink bg-ink text-paper' : 'border-ink/15 bg-paper-card text-ink/60 hover:border-ink'}`}
           >
@@ -168,11 +187,28 @@ export default function Events() {
           />
         </div>
       ) : (
-        <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-testid="events-grid">
-          {list.map((ev) => (
-            <EventCard key={ev.id} ev={ev} />
-          ))}
-        </div>
+        <>
+          <div className="mt-12 grid gap-6 md:grid-cols-2 lg:grid-cols-3" data-testid="events-grid">
+            {paginatedEvents.map((ev) => (
+              <EventCard key={ev.id} ev={ev} />
+            ))}
+          </div>
+
+          <div className="mt-10 rounded-3xl border border-ink/10 bg-paper-card px-6 py-2 shadow-card">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={list.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(sz) => {
+                setPageSize(sz);
+                setCurrentPage(1);
+              }}
+              summaryLabel="events"
+            />
+          </div>
+        </>
       )}
     </div>
   );

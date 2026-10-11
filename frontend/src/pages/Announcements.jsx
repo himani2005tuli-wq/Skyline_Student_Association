@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { communicationApi } from '@/api';
 import { Badge, Skeleton, EmptyState } from '@/components/ui/primitives';
+import Pagination from '@/components/ui/Pagination';
 import { Megaphone, Mail, BellRing, Pin } from 'lucide-react';
 import { fmtDate } from '@/lib/format';
 
@@ -15,12 +16,18 @@ export default function Announcements() {
   const [cat, setCat] = useState('All');
   const [open, setOpen] = useState(null);
   const [prefs, setPrefs] = useState({ email: true, reminders: true });
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(8);
 
   const list = (data || [])
     .filter((a) => cat === 'All' || a.category === cat)
     .sort((a, b) =>
       a.pinned === b.pinned ? new Date(b.date) - new Date(a.date) : a.pinned ? -1 : 1,
     );
+
+  const totalPages = Math.max(1, Math.ceil(list.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedAnnouncements = list.slice((safePage - 1) * pageSize, safePage * pageSize);
 
   const togglePref = (key) => {
     setPrefs((p) => {
@@ -48,7 +55,10 @@ export default function Announcements() {
         {CATS.map((c) => (
           <button
             key={c}
-            onClick={() => setCat(c)}
+            onClick={() => {
+              setCat(c);
+              setCurrentPage(1);
+            }}
             data-testid={`announcement-category-${c.toLowerCase()}`}
             className={`rounded-full border px-4 py-2 text-[13px] font-semibold transition ${cat === c ? 'border-ink bg-ink text-paper' : 'border-ink/15 bg-paper-card text-ink/60 hover:border-ink'}`}
           >
@@ -60,7 +70,7 @@ export default function Announcements() {
       <div className="mt-10 space-y-4">
         {isLoading
           ? [...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-3xl" />)
-          : list.map((a) => (
+          : paginatedAnnouncements.map((a) => (
               <article
                 key={a.id}
                 className="rounded-3xl border border-ink/10 bg-paper-card p-6 shadow-card"
@@ -108,6 +118,23 @@ export default function Announcements() {
             title="Nothing posted yet"
             body="Announcements land here the moment the committee publishes them."
           />
+        )}
+
+        {list.length > 0 && (
+          <div className="rounded-3xl border border-ink/10 bg-paper-card px-6 py-2 shadow-card">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              totalItems={list.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={(sz) => {
+                setPageSize(sz);
+                setCurrentPage(1);
+              }}
+              summaryLabel="announcements"
+            />
+          </div>
         )}
       </div>
 
