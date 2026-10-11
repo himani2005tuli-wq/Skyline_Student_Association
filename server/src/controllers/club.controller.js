@@ -159,149 +159,7 @@ export async function deleteClub(req, res, next) {
     const { id } = req.params;
 
     await prisma.$transaction(async (tx) => {
-      // 1. Volunteer Tasks & Assignments
-      const fundraisers = await tx.fundraiser.findMany({
-        where: { clubId: id },
-        select: { id: true },
-      });
-      const fundraiserIds = fundraisers.map((f) => f.id);
-      if (fundraiserIds.length > 0) {
-        const tasks = await tx.volunteerTask.findMany({
-          where: { fundraiserId: { in: fundraiserIds } },
-          select: { id: true },
-        });
-        const taskIds = tasks.map((t) => t.id);
-        if (taskIds.length > 0) {
-          await tx.taskAssignment.deleteMany({
-            where: { taskId: { in: taskIds } },
-          });
-          await tx.volunteerTask.deleteMany({
-            where: { id: { in: taskIds } },
-          });
-        }
-        await tx.fundraiser.deleteMany({
-          where: { id: { in: fundraiserIds } },
-        });
-      }
-
-      // 2. Events & Ticketing
-      const events = await tx.event.findMany({
-        where: { clubId: id },
-        select: { id: true },
-      });
-      const eventIds = events.map((e) => e.id);
-      if (eventIds.length > 0) {
-        const bookings = await tx.booking.findMany({
-          where: { eventId: { in: eventIds } },
-          select: { id: true },
-        });
-        const bookingIds = bookings.map((b) => b.id);
-        if (bookingIds.length > 0) {
-          const tickets = await tx.ticket.findMany({
-            where: { bookingId: { in: bookingIds } },
-            select: { id: true },
-          });
-          const ticketIds = tickets.map((t) => t.id);
-          if (ticketIds.length > 0) {
-            await tx.checkIn.deleteMany({
-              where: { ticketId: { in: ticketIds } },
-            });
-            await tx.ticket.deleteMany({
-              where: { id: { in: ticketIds } },
-            });
-          }
-          await tx.purchasePricingSnapshot.deleteMany({
-            where: { bookingId: { in: bookingIds } },
-          });
-          await tx.payment.deleteMany({
-            where: { bookingId: { in: bookingIds } },
-          });
-          await tx.booking.deleteMany({
-            where: { id: { in: bookingIds } },
-          });
-        }
-        await tx.ticketType.deleteMany({
-          where: { eventId: { in: eventIds } },
-        });
-        await tx.event.deleteMany({
-          where: { id: { in: eventIds } },
-        });
-      }
-
-      // 3. Products & Merchandise
-      const products = await tx.product.findMany({
-        where: { clubId: id },
-        select: { id: true },
-      });
-      const productIds = products.map((p) => p.id);
-      if (productIds.length > 0) {
-        const variants = await tx.productVariant.findMany({
-          where: { productId: { in: productIds } },
-          select: { id: true },
-        });
-        const variantIds = variants.map((v) => v.id);
-        if (variantIds.length > 0) {
-          await tx.inventoryMovement.deleteMany({
-            where: { variantId: { in: variantIds } },
-          });
-          await tx.orderItem.deleteMany({
-            where: { variantId: { in: variantIds } },
-          });
-          await tx.productVariant.deleteMany({
-            where: { id: { in: variantIds } },
-          });
-        }
-        await tx.product.deleteMany({
-          where: { id: { in: productIds } },
-        });
-      }
-
-      // 4. Announcements & Deliveries
-      const announcements = await tx.announcement.findMany({
-        where: { clubId: id },
-        select: { id: true },
-      });
-      const announcementIds = announcements.map((a) => a.id);
-      if (announcementIds.length > 0) {
-        await tx.notificationDelivery.deleteMany({
-          where: { announcementId: { in: announcementIds } },
-        });
-        await tx.announcement.deleteMany({
-          where: { id: { in: announcementIds } },
-        });
-      }
-
-      // 5. Membership Plans & Memberships
-      const plans = await tx.membershipPlan.findMany({
-        where: { clubId: id },
-        select: { id: true },
-      });
-      const planIds = plans.map((p) => p.id);
-      if (planIds.length > 0) {
-        const memberships = await tx.membership.findMany({
-          where: { planId: { in: planIds } },
-          select: { id: true },
-        });
-        const membershipIds = memberships.map((m) => m.id);
-        if (membershipIds.length > 0) {
-          await tx.membershipPayment.deleteMany({
-            where: { membershipId: { in: membershipIds } },
-          });
-          await tx.membership.deleteMany({
-            where: { id: { in: membershipIds } },
-          });
-        }
-        await tx.membershipPlan.deleteMany({
-          where: { id: { in: planIds } },
-        });
-      }
-
-      // 6. Discount Rules
-      await tx.discountRule.deleteMany({
-        where: { clubId: id },
-      });
-
-      // 7. Detach optional references
+      // Detach optional non-foreign-key columns
       await tx.expense.updateMany({
         where: { clubId: id },
         data: { clubId: null },
@@ -311,7 +169,7 @@ export async function deleteClub(req, res, next) {
         data: { clubId: null },
       });
 
-      // 8. Delete the Club
+      // Delete the Club (PostgreSQL cascade deletes all related plans, events, products, fundraisers, announcements, and discounts)
       await tx.club.delete({
         where: { id },
       });

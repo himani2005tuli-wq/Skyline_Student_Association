@@ -63,6 +63,11 @@ export const eventsApi = {
     return res.data?.data?.event;
   },
 
+  async update(id, payload) {
+    const res = await http.put(`/events/${id}`, payload);
+    return res.data?.data?.event;
+  },
+
   async delete(id) {
     const res = await http.delete(`/events/${id}`);
     return res.data?.data;
