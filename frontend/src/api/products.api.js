@@ -1,4 +1,22 @@
-import { http } from './client';
+import { http, API_BASE } from './client';
+
+export function resolveImageUrl(url) {
+  if (!url) {
+    return 'https://images.unsplash.com/photo-1610582144787-eda2e6f293b4?q=80&w=1600&auto=format&fit=crop';
+  }
+  if (
+    url.startsWith('http://') ||
+    url.startsWith('https://') ||
+    url.startsWith('data:') ||
+    url.startsWith('blob:')
+  ) {
+    return url;
+  }
+  if (url.startsWith('/uploads')) {
+    return `${API_BASE}${url}`;
+  }
+  return url;
+}
 
 export const productsApi = {
   async list(clubSlug) {
@@ -23,9 +41,7 @@ export const productsApi = {
         category: p.category || 'Apparel',
         price,
         memberPrice,
-        image:
-          p.imageUrl ||
-          'https://images.unsplash.com/photo-1610582144787-eda2e6f293b4?q=80&w=1600&auto=format&fit=crop',
+        image: resolveImageUrl(p.imageUrl),
         desc: p.description || '',
         stock: totalStock,
         sizes:
@@ -67,6 +83,17 @@ export const productsApi = {
   async adjustInventory(variantId, delta) {
     const res = await http.post(`/products/variants/${variantId}/adjust`, { delta });
     return res.data?.data?.movement;
+  },
+
+  async uploadImage(file) {
+    const formData = new FormData();
+    formData.append('image', file);
+    const res = await http.post('/products/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return res.data?.data;
   },
 };
 

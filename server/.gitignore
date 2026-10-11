@@ -8,3 +8,5 @@ logs/
 *.log
 pino-*.log
 .DS_Store
+uploads/*
+!uploads/.gitkeep
