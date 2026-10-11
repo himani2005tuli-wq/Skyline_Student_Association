@@ -6,6 +6,7 @@ import {
   PackageSearch,
   Plus,
   Trash2,
+  Pencil,
   Tag,
   Building2,
   Sparkles,
@@ -142,6 +143,150 @@ export default function AdminProducts() {
       toast.success(`"${name}" was deleted from merchandise catalogue.`);
     } catch (err) {
       toast.error(err.friendly || err.response?.data?.error?.message || 'Failed to delete product.');
+    }
+  };
+
+  // State and handlers for Editing Product
+  const [editingProduct, setEditingProduct] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [editForm, setEditForm] = useState({
+    name: '',
+    clubId: '',
+    price: 499,
+    memberPrice: 399,
+    category: 'Apparel',
+    description: '',
+    imageUrl: '',
+    variantType: 'sizes',
+    standardStock: 30,
+    sizesStock: { S: 10, M: 15, L: 15, XL: 10 },
+  });
+
+  const [editSelectedFile, setEditSelectedFile] = useState(null);
+  const [editPreviewUrl, setEditPreviewUrl] = useState(null);
+  const [editUploadingImage, setEditUploadingImage] = useState(false);
+  const [editIsDragging, setEditIsDragging] = useState(false);
+  const editFileInputRef = useRef(null);
+
+  const handleOpenEdit = (p) => {
+    const hasStandardOnly =
+      p.sizes.length === 1 &&
+      ['standard', 'default', 'one size'].includes((p.sizes[0].label || '').toLowerCase());
+    const variantType = hasStandardOnly ? 'standard' : 'sizes';
+
+    const sizesStock = { S: 0, M: 0, L: 0, XL: 0 };
+    p.sizes.forEach((s) => {
+      const up = (s.label || '').toUpperCase();
+      if (sizesStock[up] !== undefined) {
+        sizesStock[up] = s.stock;
+      }
+    });
+
+    const standardStock = p.sizes[0]?.stock ?? 0;
+
+    setEditingProduct(p);
+    setEditForm({
+      name: p.name,
+      clubId: p.clubId || p.club?.id || '',
+      price: p.price,
+      memberPrice: p.memberPrice || p.price,
+      category: p.category || 'Apparel',
+      description: p.desc || '',
+      imageUrl: p.image || '',
+      variantType,
+      standardStock,
+      sizesStock,
+    });
+    setEditPreviewUrl(p.image || null);
+    setEditSelectedFile(null);
+    setEditModalOpen(true);
+  };
+
+  const handleEditFileSelect = async (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload a valid image file (PNG, JPG, WEBP, GIF)');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('Image size must be less than 10MB');
+      return;
+    }
+
+    setEditSelectedFile(file);
+    const localUrl = URL.createObjectURL(file);
+    setEditPreviewUrl(localUrl);
+
+    setEditUploadingImage(true);
+    try {
+      const data = await productsApi.uploadImage(file);
+      if (data?.url) {
+        setEditForm((prev) => ({ ...prev, imageUrl: data.url }));
+        toast.success('Updated image uploaded to server');
+      }
+    } catch (err) {
+      console.warn('Edit image upload error:', err);
+    } finally {
+      setEditUploadingImage(false);
+    }
+  };
+
+  const handleRemoveEditImage = () => {
+    setEditSelectedFile(null);
+    if (editPreviewUrl && editPreviewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(editPreviewUrl);
+    }
+    setEditPreviewUrl(null);
+    setEditForm((prev) => ({ ...prev, imageUrl: '' }));
+    if (editFileInputRef.current) {
+      editFileInputRef.current.value = '';
+    }
+  };
+
+  const handleUpdateProduct = async (e) => {
+    e.preventDefault();
+    if (!editForm.name.trim()) {
+      toast.error('Please enter a product name');
+      return;
+    }
+
+    setEditSubmitting(true);
+    try {
+      let finalImageUrl = editForm.imageUrl;
+
+      if (editSelectedFile && !finalImageUrl) {
+        setEditUploadingImage(true);
+        const uploadResult = await productsApi.uploadImage(editSelectedFile);
+        finalImageUrl = uploadResult?.url;
+      }
+
+      await productsApi.update(editingProduct.id, {
+        name: editForm.name.trim(),
+        clubId: editForm.clubId || undefined,
+        description: editForm.description.trim() || undefined,
+        imageUrl: finalImageUrl || undefined,
+        category: editForm.category,
+        price: Number(editForm.price),
+        memberPrice: Number(editForm.memberPrice),
+        standardStock:
+          editForm.variantType === 'standard' ? Number(editForm.standardStock) : undefined,
+        sizesStock: editForm.variantType === 'sizes' ? editForm.sizesStock : undefined,
+      });
+
+      qc.invalidateQueries({ queryKey: ['products'] });
+      toast.success(`"${editForm.name}" updated successfully!`);
+      setEditModalOpen(false);
+      setEditingProduct(null);
+    } catch (err) {
+      const msg =
+        err.response?.data?.error?.message || err.message || 'Failed to update product';
+      toast.error(`Error: ${msg}`);
+    } finally {
+      setEditSubmitting(false);
+      setEditUploadingImage(false);
     }
   };
 
@@ -330,9 +475,18 @@ export default function AdminProducts() {
                         <Badge tone="warning">Low stock</Badge>
                       )}
                       <button
+                        onClick={() => handleOpenEdit(p)}
+                        className="rounded-lg p-1.5 text-ink/40 transition hover:bg-accent/10 hover:text-accent"
+                        title="Edit product"
+                        data-testid={`edit-product-${p.id}`}
+                      >
+                        <Pencil size={15} />
+                      </button>
+                      <button
                         onClick={() => handleDelete(p.id, p.name)}
                         className="rounded-lg p-1.5 text-ink/30 transition hover:bg-danger/10 hover:text-danger"
                         title="Delete product"
+                        data-testid={`delete-product-${p.id}`}
                       >
                         <Trash2 size={15} />
                       </button>
@@ -681,6 +835,310 @@ export default function AdminProducts() {
               className="rounded-full bg-accent px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-accent-dark disabled:opacity-50"
             >
               {submitting ? 'Creating Item…' : 'Publish to Store'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Product Modal */}
+      <Modal
+        open={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        title={`Edit Product: ${editingProduct?.name || ''}`}
+      >
+        <form onSubmit={handleUpdateProduct} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+                Item Name *
+              </label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Skyline Heavyweight Hoodie"
+                value={editForm.name}
+                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white p-3 text-sm text-ink outline-none focus:border-accent"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+                Chapter / Club
+              </label>
+              {isSuperAdmin ? (
+                <select
+                  value={editForm.clubId}
+                  onChange={(e) => setEditForm({ ...editForm, clubId: e.target.value })}
+                  className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white p-3 text-sm text-ink outline-none focus:border-accent"
+                >
+                  {clubs.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="mt-1.5 flex items-center justify-between rounded-xl border border-accent/20 bg-accent/5 p-3 font-mono text-xs font-semibold text-ink">
+                  <span>{clubs[0]?.name || user?.club?.name || 'Assigned Chapter'}</span>
+                  <Badge tone="accent">Chapter Merch</Badge>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+                Regular Price (₹) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                required
+                value={editForm.price}
+                onChange={(e) => setEditForm({ ...editForm, price: e.target.value })}
+                className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white p-3 text-sm font-bold text-ink outline-none focus:border-accent"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+                Member Price (₹)
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={editForm.memberPrice}
+                onChange={(e) => setEditForm({ ...editForm, memberPrice: e.target.value })}
+                className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white p-3 text-sm font-bold text-accent-dark outline-none focus:border-accent"
+              />
+            </div>
+
+            <div>
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+                Category
+              </label>
+              <select
+                value={editForm.category}
+                onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+                className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white p-3 text-sm text-ink outline-none focus:border-accent"
+              >
+                <option value="Apparel">Apparel</option>
+                <option value="Accessories">Accessories</option>
+                <option value="Stationery">Stationery</option>
+                <option value="Collectibles">Collectibles</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+              Description
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Comfortable 100% organic cotton fleece with embroidered chapter insignia."
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              className="mt-1.5 w-full rounded-xl border border-ink/15 bg-white p-3 text-sm text-ink outline-none focus:border-accent"
+            />
+          </div>
+
+          {/* Merchandise Photo Upload for Edit */}
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="block font-mono text-xs font-semibold uppercase tracking-wider text-ink/60">
+                Merchandise Photo
+              </label>
+              {editSelectedFile && (
+                <span className="font-mono text-[11px] text-ink/40">
+                  {(editSelectedFile.size / 1024).toFixed(0)} KB
+                </span>
+              )}
+            </div>
+
+            <input
+              ref={editFileInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              data-testid="edit-product-image-file-input"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) handleEditFileSelect(file);
+              }}
+            />
+
+            {editPreviewUrl ? (
+              <div className="mt-2 relative overflow-hidden rounded-2xl border border-ink/15 bg-paper/40 p-3">
+                <div className="flex items-center gap-4">
+                  <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl border border-ink/10 bg-white">
+                    <img
+                      src={editPreviewUrl}
+                      alt="Product preview"
+                      className="h-full w-full object-cover"
+                    />
+                    {editUploadingImage && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-ink/50 backdrop-blur-xs">
+                        <Loader2 size={18} className="animate-spin text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="truncate text-xs font-semibold text-ink">
+                      {editSelectedFile?.name || 'Current product photo'}
+                    </p>
+                    <div className="mt-1 flex items-center gap-2">
+                      {editUploadingImage ? (
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] text-accent font-semibold">
+                          <Loader2 size={10} className="animate-spin" /> Uploading to server...
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 font-mono text-[10px] text-success font-semibold">
+                          <CheckCircle2 size={11} /> Saved photo
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => editFileInputRef.current?.click()}
+                      className="rounded-lg border border-ink/15 bg-white px-3 py-1.5 font-mono text-xs font-semibold text-ink transition hover:border-accent hover:text-accent"
+                    >
+                      Change Photo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveEditImage}
+                      className="rounded-lg p-1.5 text-ink/40 transition hover:bg-danger/10 hover:text-danger"
+                      title="Remove image"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setEditIsDragging(true);
+                }}
+                onDragLeave={() => setEditIsDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setEditIsDragging(false);
+                  const file = e.dataTransfer.files?.[0];
+                  if (file) handleEditFileSelect(file);
+                }}
+                onClick={() => editFileInputRef.current?.click()}
+                className={`mt-2 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition ${
+                  editIsDragging
+                    ? 'border-accent bg-accent/5 scale-[1.01]'
+                    : 'border-ink/15 bg-white hover:border-accent hover:bg-accent/5'
+                }`}
+              >
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+                  <Upload size={22} />
+                </div>
+                <p className="mt-2 text-xs font-semibold text-ink">
+                  Click to browse or drag & drop replacement photo
+                </p>
+                <p className="mt-0.5 font-mono text-[10px] text-ink/40">
+                  PNG, JPG, WEBP, or GIF up to 10MB
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Sizing & Variants for Edit */}
+          <div className="rounded-2xl border border-ink/10 bg-paper/30 p-4">
+            <div className="flex items-center justify-between">
+              <label className="font-mono text-xs font-semibold uppercase tracking-wider text-ink">
+                Sizing & Stock
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, variantType: 'sizes' })}
+                  className={`rounded-lg px-3 py-1 font-mono text-xs transition ${
+                    editForm.variantType === 'sizes'
+                      ? 'bg-ink text-white font-semibold'
+                      : 'bg-white border border-ink/10 text-ink/60'
+                  }`}
+                >
+                  Multi-size (S, M, L, XL)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, variantType: 'standard' })}
+                  className={`rounded-lg px-3 py-1 font-mono text-xs transition ${
+                    editForm.variantType === 'standard'
+                      ? 'bg-ink text-white font-semibold'
+                      : 'bg-white border border-ink/10 text-ink/60'
+                  }`}
+                >
+                  One Size / Standard
+                </button>
+              </div>
+            </div>
+
+            {editForm.variantType === 'sizes' ? (
+              <div className="mt-4 grid grid-cols-4 gap-3">
+                {['S', 'M', 'L', 'XL'].map((sz) => (
+                  <div key={sz} className="rounded-xl border border-ink/10 bg-white p-3">
+                    <span className="font-mono text-xs font-bold text-ink">{sz}</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editForm.sizesStock[sz]}
+                      onChange={(e) =>
+                        setEditForm({
+                          ...editForm,
+                          sizesStock: {
+                            ...editForm.sizesStock,
+                            [sz]: e.target.value,
+                          },
+                        })
+                      }
+                      className="mt-1 w-full border-b border-ink/15 bg-transparent font-mono text-base font-bold text-ink outline-none focus:border-accent"
+                    />
+                    <span className="font-mono text-[9px] uppercase text-ink/40">units</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="mt-4 max-w-xs">
+                <label className="font-mono text-xs text-ink/60">Units in Stock</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={editForm.standardStock}
+                  onChange={(e) => setEditForm({ ...editForm, standardStock: e.target.value })}
+                  className="mt-1 w-full rounded-xl border border-ink/15 bg-white p-2.5 font-mono text-base font-bold text-ink outline-none focus:border-accent"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-ink/10">
+            <button
+              type="button"
+              onClick={() => setEditModalOpen(false)}
+              className="rounded-full border border-ink/15 px-5 py-2.5 text-xs font-semibold text-ink transition hover:bg-ink/5"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={editSubmitting}
+              className="rounded-full bg-accent px-6 py-2.5 text-xs font-bold text-white shadow-md transition hover:bg-accent-dark disabled:opacity-50"
+            >
+              {editSubmitting ? 'Saving Changes…' : 'Save Changes'}
             </button>
           </div>
         </form>

@@ -156,7 +156,7 @@ model User {
   updatedAt           DateTime  @updatedAt
 
   clubId              String?
-  club                Club?     @relation("ClubAdminUsers", fields: [clubId], references: [id])
+  club                Club?     @relation("ClubAdminUsers", fields: [clubId], references: [id], onDelete: SetNull)
 
   // Relations
   memberships          Membership[]
@@ -228,7 +228,7 @@ model MembershipPlan {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  club         Club         @relation(fields: [clubId], references: [id])
+  club         Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
   memberships  Membership[]
 
   @@index([clubId])
@@ -245,9 +245,9 @@ model Membership {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  user                User               @relation(fields: [userId], references: [id])
-  plan                MembershipPlan     @relation(fields: [planId], references: [id])
-  renewedFrom         Membership?        @relation("MembershipRenewal", fields: [renewedFromId], references: [id])
+  user                User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                MembershipPlan     @relation(fields: [planId], references: [id], onDelete: Cascade)
+  renewedFrom         Membership?        @relation("MembershipRenewal", fields: [renewedFromId], references: [id], onDelete: SetNull)
   renewedTo           Membership?        @relation("MembershipRenewal")
   membershipPayments  MembershipPayment[]
 
@@ -265,8 +265,8 @@ model MembershipPayment {
   pointsUsed    Int      @default(0)
   createdAt     DateTime @default(now())
 
-  membership Membership @relation(fields: [membershipId], references: [id])
-  payment    Payment?   @relation(fields: [paymentId], references: [id])
+  membership Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  payment    Payment?   @relation(fields: [paymentId], references: [id], onDelete: SetNull)
 
   @@index([membershipId])
 }
@@ -297,7 +297,7 @@ model DiscountRule {
   createdAt                DateTime     @default(now())
   updatedAt                DateTime     @updatedAt
 
-  club Club @relation(fields: [clubId], references: [id])
+  club Club @relation(fields: [clubId], references: [id], onDelete: Cascade)
 
   @@index([clubId])
 }
@@ -321,7 +321,7 @@ model Event {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  club        Club         @relation(fields: [clubId], references: [id])
+  club        Club         @relation(fields: [clubId], references: [id], onDelete: Cascade)
   ticketTypes TicketType[]
   bookings    Booking[]
 
@@ -342,7 +342,7 @@ model TicketType {
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 
-  event    Event     @relation(fields: [eventId], references: [id])
+  event    Event     @relation(fields: [eventId], references: [id], onDelete: Cascade)
   bookings Booking[]
 
   @@index([eventId])
@@ -361,9 +361,9 @@ model Booking {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  user       User                    @relation(fields: [userId], references: [id])
-  event      Event                   @relation(fields: [eventId], references: [id])
-  ticketType TicketType              @relation(fields: [ticketTypeId], references: [id])
+  user       User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event      Event                   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  ticketType TicketType              @relation(fields: [ticketTypeId], references: [id], onDelete: Cascade)
   tickets    Ticket[]
   payments   Payment[]
   pricing    PurchasePricingSnapshot?
@@ -379,7 +379,7 @@ model Ticket {
   status    TicketStatus @default(VALID)
   createdAt DateTime     @default(now())
 
-  booking Booking  @relation(fields: [bookingId], references: [id])
+  booking Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   checkIn CheckIn?
 
   @@index([code])
@@ -393,7 +393,7 @@ model CheckIn {
   note      String?
   createdAt DateTime @default(now())
 
-  ticket Ticket @relation(fields: [ticketId], references: [id])
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 }
 
 // ─── Announcements & Notifications ──────────────────────
@@ -411,7 +411,7 @@ model Announcement {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  club          Club                   @relation(fields: [clubId], references: [id])
+  club          Club                   @relation(fields: [clubId], references: [id], onDelete: Cascade)
   notifications NotificationDelivery[]
 
   @@index([clubId])
@@ -428,7 +428,7 @@ model MailingListSubscription {
   createdAt     DateTime            @default(now())
   updatedAt     DateTime            @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, channel])
   @@index([userId])
@@ -446,7 +446,7 @@ model NotificationDelivery {
   errorMessage    String?
   createdAt       DateTime            @default(now())
 
-  announcement Announcement? @relation(fields: [announcementId], references: [id])
+  announcement Announcement? @relation(fields: [announcementId], references: [id], onDelete: Cascade)
 
   @@index([announcementId])
   @@index([status])
@@ -464,7 +464,7 @@ model Product {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  club     Club             @relation(fields: [clubId], references: [id])
+  club     Club             @relation(fields: [clubId], references: [id], onDelete: Cascade)
   variants ProductVariant[]
 
   @@index([clubId])
@@ -483,7 +483,7 @@ model ProductVariant {
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  product            Product             @relation(fields: [productId], references: [id])
+  product            Product             @relation(fields: [productId], references: [id], onDelete: Cascade)
   inventoryMovements InventoryMovement[]
   orderItems         OrderItem[]
 
@@ -499,7 +499,7 @@ model InventoryMovement {
   reference String?
   createdAt DateTime            @default(now())
 
-  variant ProductVariant @relation(fields: [variantId], references: [id])
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@index([variantId])
 }
@@ -517,7 +517,7 @@ model Order {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  user     User                    @relation(fields: [userId], references: [id])
+  user     User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   items    OrderItem[]
   payments Payment[]
   pricing  PurchasePricingSnapshot?
@@ -535,8 +535,8 @@ model OrderItem {
   totalInPaise   Int
   createdAt      DateTime @default(now())
 
-  order   Order          @relation(fields: [orderId], references: [id])
-  variant ProductVariant @relation(fields: [variantId], references: [id])
+  order   Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
 
   @@index([orderId])
 }
@@ -557,8 +557,8 @@ model Payment {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  order              Order?              @relation(fields: [orderId], references: [id])
-  booking            Booking?            @relation(fields: [bookingId], references: [id])
+  order              Order?              @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  booking            Booking?            @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   refund             Refund?
   membershipPayment  MembershipPayment?
   webhookEvents      PaymentWebhookEvent[]
@@ -578,7 +578,7 @@ model PaymentWebhookEvent {
   processed       Boolean  @default(false)
   createdAt       DateTime @default(now())
 
-  payment Payment? @relation(fields: [paymentId], references: [id])
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([providerEventId])
 }
@@ -591,7 +591,7 @@ model Refund {
   providerRef   String?
   createdAt     DateTime @default(now())
 
-  payment Payment @relation(fields: [paymentId], references: [id])
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 }
 
 // ─── Loyalty ────────────────────────────────────────────
@@ -605,7 +605,7 @@ model LoyaltyAccount {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  user         User                 @relation(fields: [userId], references: [id])
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions LoyaltyTransaction[]
 
   @@index([userId])
@@ -624,7 +624,7 @@ model LoyaltyTransaction {
   expiresAt       DateTime?
   createdAt       DateTime               @default(now())
 
-  account    LoyaltyAccount   @relation(fields: [accountId], references: [id])
+  account    LoyaltyAccount   @relation(fields: [accountId], references: [id], onDelete: Cascade)
   redemption LoyaltyRedemption?
 
   @@index([accountId])
@@ -642,7 +642,7 @@ model LoyaltyRedemption {
   amountInPaise Int
   createdAt     DateTime @default(now())
 
-  transaction LoyaltyTransaction @relation(fields: [transactionId], references: [id])
+  transaction LoyaltyTransaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 }
 
 // ─── Pricing Snapshot ───────────────────────────────────
@@ -654,8 +654,8 @@ model PurchasePricingSnapshot {
   breakdown     Json
   createdAt     DateTime @default(now())
 
-  order   Order?   @relation(fields: [orderId], references: [id])
-  booking Booking? @relation(fields: [bookingId], references: [id])
+  order   Order?   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  booking Booking? @relation(fields: [bookingId], references: [id], onDelete: Cascade)
 }
 
 // ─── Fundraisers & Tasks ────────────────────────────────
@@ -673,7 +673,7 @@ model Fundraiser {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  club  Club            @relation(fields: [clubId], references: [id])
+  club  Club            @relation(fields: [clubId], references: [id], onDelete: Cascade)
   tasks VolunteerTask[]
 
   @@index([clubId])
@@ -689,7 +689,7 @@ model VolunteerTask {
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 
-  fundraiser  Fundraiser       @relation(fields: [fundraiserId], references: [id])
+  fundraiser  Fundraiser       @relation(fields: [fundraiserId], references: [id], onDelete: Cascade)
   assignments TaskAssignment[]
 
   @@index([fundraiserId])
@@ -704,8 +704,8 @@ model TaskAssignment {
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
-  task VolunteerTask @relation(fields: [taskId], references: [id])
-  user User          @relation(fields: [userId], references: [id])
+  task VolunteerTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([taskId, userId])
   @@index([userId])
@@ -726,7 +726,7 @@ model Expense {
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id])
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   reimbursement Reimbursement?
 
   @@index([userId])
@@ -742,7 +742,7 @@ model Reimbursement {
   note          String?
   createdAt     DateTime @default(now())
 
-  expense Expense @relation(fields: [expenseId], references: [id])
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
 }
 
 // ─── Financial Ledger ───────────────────────────────────
@@ -776,7 +776,7 @@ model AuditLog {
   ipAddress  String?
   createdAt  DateTime @default(now())
 
-  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+  actor User? @relation("AuditActor", fields: [actorId], references: [id], onDelete: SetNull)
 
   @@index([actorId])
   @@index([action])
@@ -823,3 +823,12 @@ model Notification {
   @@index([isRead])
   @@index([createdAt])
 }
+
+model playing_with_neon {
+  id    Int     @id @default(autoincrement())
+  name  String?
+  value Float?
+
+  @@ignore
+}
+

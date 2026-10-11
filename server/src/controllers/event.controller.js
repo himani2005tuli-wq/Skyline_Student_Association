@@ -84,6 +84,16 @@ export async function createEvent(req, res, next) {
   }
 }
 
+export async function updateEvent(req, res, next) {
+  try {
+    const { id } = req.params;
+    const event = await eventService.updateEvent(id, req.body);
+    res.json({ success: true, data: { event } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function deleteEvent(req, res, next) {
   try {
     const { id } = req.params;
@@ -93,3 +103,4 @@ export async function deleteEvent(req, res, next) {
     next(err);
   }
 }
+

@@ -69,6 +69,17 @@ router.put(
   },
   updateProduct,
 );
+router.patch(
+  '/:id',
+  requireAuth,
+  requireRoles(['CLUB_ADMIN', 'TREASURER', 'SUPER_ADMIN']),
+  csrfSynchronisedProtection,
+  async (req, res, next) => {
+    await invalidateCache('products');
+    next();
+  },
+  updateProduct,
+);
 router.delete(
   '/:id',
   requireAuth,

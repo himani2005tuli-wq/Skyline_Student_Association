@@ -207,50 +207,98 @@ class ProductService {
   }
 
   /**
-   * Update product details.
+   * Update product details, pricing, and variant stocks.
    */
   async updateProduct(id, data) {
-    return prisma.product.update({
-      where: { id },
-      data: {
-        name: data.name,
-        description: data.description,
-        imageUrl: data.imageUrl,
-        isActive: data.isActive,
-      },
-      include: {
-        club: { select: { id: true, name: true, slug: true } },
-        variants: true,
-      },
+    return prisma.$transaction(async (tx) => {
+      const updateData = {};
+      if (data.name !== undefined) updateData.name = data.name;
+      if (data.description !== undefined) updateData.description = data.description;
+      if (data.imageUrl !== undefined && data.imageUrl !== '') updateData.imageUrl = data.imageUrl;
+      if (data.isActive !== undefined) updateData.isActive = Boolean(data.isActive);
+      if (data.clubId !== undefined) updateData.clubId = data.clubId;
+
+      const product = await tx.product.update({
+        where: { id },
+        data: updateData,
+        include: {
+          variants: true,
+          club: { select: { id: true, name: true, slug: true } },
+        },
+      });
+
+      const priceInPaise =
+        data.price !== undefined ? Math.round(Number(data.price) * 100) : undefined;
+      const memberPriceInPaise =
+        data.memberPrice !== undefined ? Math.round(Number(data.memberPrice) * 100) : undefined;
+
+      // Update variant prices if price or memberPrice was updated
+      if (priceInPaise !== undefined || memberPriceInPaise !== undefined) {
+        const variantUpdate = {};
+        if (priceInPaise !== undefined && !isNaN(priceInPaise)) {
+          variantUpdate.priceInPaise = priceInPaise;
+        }
+        if (memberPriceInPaise !== undefined && !isNaN(memberPriceInPaise)) {
+          variantUpdate.memberPriceInPaise = memberPriceInPaise;
+        }
+        if (Object.keys(variantUpdate).length > 0) {
+          await tx.productVariant.updateMany({
+            where: { productId: id },
+            data: variantUpdate,
+          });
+        }
+      }
+
+      // Update standard stock if provided
+      if (data.standardStock !== undefined) {
+        const stockVal = Number(data.standardStock);
+        if (!isNaN(stockVal)) {
+          const stdVariant = product.variants.find((v) =>
+            ['standard', 'default', 'one size'].includes(v.name.toLowerCase()),
+          ) || product.variants[0];
+          if (stdVariant) {
+            await tx.productVariant.update({
+              where: { id: stdVariant.id },
+              data: { stock: stockVal },
+            });
+          }
+        }
+      }
+
+      // Update size variant stocks if provided
+      if (data.sizesStock && typeof data.sizesStock === 'object') {
+        for (const [sizeName, stockVal] of Object.entries(data.sizesStock)) {
+          const numStock = Number(stockVal);
+          if (!isNaN(numStock)) {
+            const matchingVar = product.variants.find(
+              (v) => v.name.toLowerCase() === sizeName.toLowerCase(),
+            );
+            if (matchingVar) {
+              await tx.productVariant.update({
+                where: { id: matchingVar.id },
+                data: { stock: numStock },
+              });
+            }
+          }
+        }
+      }
+
+      return tx.product.findUnique({
+        where: { id },
+        include: {
+          club: { select: { id: true, name: true, slug: true } },
+          variants: true,
+        },
+      });
     });
   }
 
   /**
-   * Delete a product and its associated variants.
+   * Delete a product and its associated variants and movements via database cascade.
    */
   async deleteProduct(id) {
-    return prisma.$transaction(async (tx) => {
-      const variants = await tx.productVariant.findMany({
-        where: { productId: id },
-        select: { id: true },
-      });
-      const variantIds = variants.map((v) => v.id);
-
-      if (variantIds.length > 0) {
-        await tx.inventoryMovement.deleteMany({
-          where: { variantId: { in: variantIds } },
-        });
-        await tx.orderItem.deleteMany({
-          where: { variantId: { in: variantIds } },
-        });
-        await tx.productVariant.deleteMany({
-          where: { productId: id },
-        });
-      }
-
-      return tx.product.delete({
-        where: { id },
-      });
+    return prisma.product.delete({
+      where: { id },
     });
   }
 }

@@ -102,52 +102,35 @@ class EventService {
   }
 
   /**
+   * Update event details.
+   */
+  async updateEvent(eventId, data) {
+    const updateData = {};
+    if (data.title !== undefined) updateData.title = data.title;
+    if (data.description !== undefined) updateData.description = data.description;
+    if (data.location !== undefined) updateData.location = data.location;
+    if (data.startDate !== undefined) updateData.startDate = new Date(data.startDate);
+    if (data.endDate !== undefined) updateData.endDate = new Date(data.endDate);
+    if (data.capacity !== undefined) updateData.capacity = Number(data.capacity);
+    if (data.imageUrl !== undefined) updateData.imageUrl = data.imageUrl;
+    if (data.status !== undefined) updateData.status = data.status;
+
+    return prisma.event.update({
+      where: { id: eventId },
+      data: updateData,
+      include: {
+        club: { select: { id: true, name: true, slug: true } },
+        ticketTypes: true,
+      },
+    });
+  }
+
+  /**
    * Delete event and cascade delete all associated bookings, tickets, check-ins, and ticket types.
    */
   async deleteEvent(eventId) {
-    return prisma.$transaction(async (tx) => {
-      const bookings = await tx.booking.findMany({
-        where: { eventId },
-        select: { id: true },
-      });
-      const bookingIds = bookings.map((b) => b.id);
-
-      if (bookingIds.length > 0) {
-        const tickets = await tx.ticket.findMany({
-          where: { bookingId: { in: bookingIds } },
-          select: { id: true },
-        });
-        const ticketIds = tickets.map((t) => t.id);
-
-        if (ticketIds.length > 0) {
-          await tx.checkIn.deleteMany({
-            where: { ticketId: { in: ticketIds } },
-          });
-          await tx.ticket.deleteMany({
-            where: { id: { in: ticketIds } },
-          });
-        }
-
-        await tx.purchasePricingSnapshot.deleteMany({
-          where: { bookingId: { in: bookingIds } },
-        });
-
-        await tx.payment.deleteMany({
-          where: { bookingId: { in: bookingIds } },
-        });
-
-        await tx.booking.deleteMany({
-          where: { id: { in: bookingIds } },
-        });
-      }
-
-      await tx.ticketType.deleteMany({
-        where: { eventId },
-      });
-
-      return tx.event.delete({
-        where: { id: eventId },
-      });
+    return prisma.event.delete({
+      where: { id: eventId },
     });
   }
 }

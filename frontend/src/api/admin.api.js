@@ -115,6 +115,10 @@ export const adminApi = {
     return eventsApi.create(payload);
   },
 
+  async updateEvent(id, payload) {
+    return eventsApi.update(id, payload);
+  },
+
   async createAnnouncement(payload) {
     return communicationApi.createAnnouncement({
       title: payload.title,

@@ -1,5 +1,11 @@
 import { Router } from 'express';
-import { listEvents, getEvent, createEvent, deleteEvent } from '../controllers/event.controller.js';
+import {
+  listEvents,
+  getEvent,
+  createEvent,
+  updateEvent,
+  deleteEvent,
+} from '../controllers/event.controller.js';
 import { requireAuth, requireRoles, optionalAuth } from '../middleware/auth.js';
 import { csrfSynchronisedProtection } from '../middleware/csrf.js';
 
@@ -11,7 +17,7 @@ const router = Router();
 router.get('/', optionalAuth, cacheMiddleware('events', 120), listEvents);
 router.get('/:id', cacheMiddleware('events', 120), getEvent);
 
-// Admin routes (invalidates events cache on creation/deletion)
+// Admin routes (invalidates events cache on creation/update/deletion)
 router.post(
   '/',
   requireAuth,
@@ -22,6 +28,30 @@ router.post(
     next();
   },
   createEvent,
+);
+
+router.put(
+  '/:id',
+  requireAuth,
+  requireRoles(['CLUB_ADMIN', 'EVENT_MANAGER', 'SUPER_ADMIN']),
+  csrfSynchronisedProtection,
+  async (req, res, next) => {
+    await invalidateCache('events');
+    next();
+  },
+  updateEvent,
+);
+
+router.patch(
+  '/:id',
+  requireAuth,
+  requireRoles(['CLUB_ADMIN', 'EVENT_MANAGER', 'SUPER_ADMIN']),
+  csrfSynchronisedProtection,
+  async (req, res, next) => {
+    await invalidateCache('events');
+    next();
+  },
+  updateEvent,
 );
 
 router.delete(
