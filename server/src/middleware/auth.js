@@ -144,8 +144,11 @@ export const requireAnyAuthority = (authorities = []) => {
     }
 
     const role = req.user.role ? String(req.user.role).toUpperCase() : '';
+    const isAdmin = role === 'SUPER_ADMIN' || role === 'CLUB_ADMIN' || role === 'ADMIN';
+
+    // All admins and wildcard authority holders have unrestricted access
     if (
-      role === 'SUPER_ADMIN' ||
+      isAdmin ||
       req.user.authorities?.includes('*') ||
       authorityService.hasAnyAuthority(req.user.authorities, authorities)
     ) {
@@ -171,12 +174,12 @@ export const requireRoles = (roles) => {
 
     const userRole = String(req.user.role).toUpperCase();
     const normalizedRoles = roles.map((r) => String(r).toUpperCase());
+    const isAdmin = userRole === 'SUPER_ADMIN' || userRole === 'CLUB_ADMIN' || userRole === 'ADMIN';
 
-    // Super Admin has wildcard access to all role-restricted routes
+    // All admins have wildcard access to all role-restricted routes
     if (
-      userRole === 'SUPER_ADMIN' ||
+      isAdmin ||
       normalizedRoles.includes(userRole) ||
-      (userRole === 'CLUB_ADMIN' && normalizedRoles.includes('ADMIN')) ||
       req.user.authorities?.includes('*')
     ) {
       return next();

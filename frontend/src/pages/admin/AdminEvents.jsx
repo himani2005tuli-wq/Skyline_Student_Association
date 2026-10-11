@@ -5,7 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Plus, ArrowUpRight, Trash2 } from 'lucide-react';
+import { Plus, ArrowUpRight, Trash2, Pencil } from 'lucide-react';
 import { adminApi, eventsApi, clubsApi } from '@/api';
 import DataTable from '@/components/ui/DataTable';
 import Modal from '@/components/ui/Modal';
@@ -44,6 +44,44 @@ export default function AdminEvents() {
     reset,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(eventSchema) });
+
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+  const {
+    register: registerEdit,
+    handleSubmit: handleEditSubmit,
+    reset: resetEdit,
+    formState: { errors: editErrors, isSubmitting: isEditSubmitting },
+  } = useForm({ resolver: zodResolver(eventSchema) });
+
+  const handleOpenEdit = (evt) => {
+    setEditingEvent(evt);
+    const dateStr = evt.date ? new Date(evt.date).toISOString().split('T')[0] : '';
+    resetEdit({
+      title: evt.title || '',
+      category: evt.category || 'Social',
+      date: dateStr,
+      venue: evt.venue || '',
+      capacity: evt.capacity || 100,
+      memberPrice: evt.ticketTypes?.[0]?.price ?? 0,
+      guestPrice: evt.ticketTypes?.[1]?.price ?? evt.ticketTypes?.[0]?.price ?? 0,
+      desc: evt.desc || '',
+    });
+    setEditOpen(true);
+  };
+
+  const onEditSubmit = async (payload) => {
+    if (!editingEvent) return;
+    try {
+      await eventsApi.update(editingEvent.id, payload);
+      qc.invalidateQueries({ queryKey: ['events'] });
+      toast.success(`"${payload.title}" updated successfully.`);
+      setEditOpen(false);
+      setEditingEvent(null);
+    } catch (err) {
+      toast.error(err.friendly || err.message || 'Failed to update event');
+    }
+  };
 
   const deleteMutation = useMutation({
     mutationFn: (id) => eventsApi.delete(id),
@@ -152,6 +190,17 @@ export default function AdminEvents() {
             label: '',
             render: (r) => (
               <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleOpenEdit(r);
+                  }}
+                  title="Edit event"
+                  className="p-1.5 text-ink/40 hover:text-ink hover:bg-ink/5 rounded-lg transition"
+                >
+                  <Pencil className="h-4 w-4" />
+                </button>
                 <button
                   type="button"
                   onClick={async (e) => {
@@ -310,6 +359,116 @@ export default function AdminEvents() {
               data-testid="create-event-submit"
             >
               Publish event
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Event Modal */}
+      <Modal
+        open={editOpen}
+        onClose={() => {
+          setEditOpen(false);
+          setEditingEvent(null);
+        }}
+        title="Edit Event"
+        wide
+        testid="edit-event-modal"
+      >
+        <form
+          onSubmit={handleEditSubmit(onEditSubmit)}
+          className="grid gap-4 sm:grid-cols-2"
+          noValidate
+          data-testid="edit-event-form"
+        >
+          <div className="sm:col-span-2">
+            <Field label="Event title" htmlFor="edit-ev-title" error={editErrors.title?.message}>
+              <Input
+                id="edit-ev-title"
+                placeholder="Spring Gala"
+                data-testid="edit-event-title"
+                {...registerEdit('title')}
+              />
+            </Field>
+          </div>
+          <Field label="Category" htmlFor="edit-ev-cat" error={editErrors.category?.message}>
+            <Select id="edit-ev-cat" data-testid="edit-event-category" {...registerEdit('category')}>
+              <option value="">Select…</option>
+              {['Social', 'Culture', 'Outdoors', 'Tech', 'Community', 'Fundraiser'].map((c) => (
+                <option key={c}>{c}</option>
+              ))}
+            </Select>
+          </Field>
+          <Field label="Date" htmlFor="edit-ev-date" error={editErrors.date?.message}>
+            <Input id="edit-ev-date" type="date" data-testid="edit-event-date" {...registerEdit('date')} />
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="Venue" htmlFor="edit-ev-venue" error={editErrors.venue?.message}>
+              <Input
+                id="edit-ev-venue"
+                placeholder="Grand Ballroom"
+                data-testid="edit-event-venue"
+                {...registerEdit('venue')}
+              />
+            </Field>
+          </div>
+          <Field label="Capacity" htmlFor="edit-ev-cap" error={editErrors.capacity?.message}>
+            <Input
+              id="edit-ev-cap"
+              type="number"
+              min="1"
+              data-testid="edit-event-capacity"
+              {...registerEdit('capacity')}
+            />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Member ₹" htmlFor="edit-ev-mprice" error={editErrors.memberPrice?.message}>
+              <Input
+                id="edit-ev-mprice"
+                type="number"
+                min="0"
+                data-testid="edit-event-member-price"
+                {...registerEdit('memberPrice')}
+              />
+            </Field>
+            <Field label="Guest ₹" htmlFor="edit-ev-gprice" error={editErrors.guestPrice?.message}>
+              <Input
+                id="edit-ev-gprice"
+                type="number"
+                min="0"
+                data-testid="edit-event-guest-price"
+                {...registerEdit('guestPrice')}
+              />
+            </Field>
+          </div>
+          <div className="sm:col-span-2">
+            <Field label="Description" htmlFor="edit-ev-desc" error={editErrors.desc?.message}>
+              <Textarea
+                id="edit-ev-desc"
+                placeholder="What makes this one unmissable?"
+                data-testid="edit-event-desc"
+                {...registerEdit('desc')}
+              />
+            </Field>
+          </div>
+          <div className="flex justify-end gap-3 sm:col-span-2">
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setEditOpen(false);
+                setEditingEvent(null);
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              loading={isEditSubmitting}
+              loadingText="Saving changes…"
+              data-testid="edit-event-submit"
+            >
+              Save Changes
             </Button>
           </div>
         </form>

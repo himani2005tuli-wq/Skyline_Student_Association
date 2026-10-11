@@ -30,6 +30,11 @@ export const communicationApi = {
     return res.data?.data;
   },
 
+  async updateAnnouncement(id, payload) {
+    const res = await http.put(`/communication/announcements/${id}`, payload);
+    return res.data?.data?.announcement;
+  },
+
   async deleteAnnouncement(id) {
     const res = await http.delete(`/communication/announcements/${id}`);
     return res.data?.data;

@@ -4,6 +4,7 @@ import {
   getAnnouncements,
   getScheduledAnnouncements,
   cancelScheduledAnnouncement,
+  updateAnnouncement,
   deleteAnnouncement,
   triggerScheduledCron,
   getCronStatus,
@@ -72,6 +73,31 @@ router.delete(
   requireAnyAuthority(['announcements:publish', '*']),
   csrfSynchronisedProtection,
   cancelScheduledAnnouncement,
+);
+
+// Update a published or existing announcement
+router.put(
+  '/announcements/:id',
+  requireAuth,
+  requireAnyAuthority(['announcements:publish', '*']),
+  csrfSynchronisedProtection,
+  async (req, res, next) => {
+    await invalidateCache('announcements');
+    next();
+  },
+  updateAnnouncement,
+);
+
+router.patch(
+  '/announcements/:id',
+  requireAuth,
+  requireAnyAuthority(['announcements:publish', '*']),
+  csrfSynchronisedProtection,
+  async (req, res, next) => {
+    await invalidateCache('announcements');
+    next();
+  },
+  updateAnnouncement,
 );
 
 // Delete a published or existing announcement

@@ -78,6 +78,21 @@ export const adminApi = {
     return res.data?.data?.users || [];
   },
 
+  async createUser(payload) {
+    const res = await http.post('/users', payload);
+    return res.data?.data?.user;
+  },
+
+  async updateUser(userId, payload) {
+    const res = await http.put(`/users/${userId}`, payload);
+    return res.data?.data?.user;
+  },
+
+  async deleteUser(userId) {
+    const res = await http.delete(`/users/${userId}`);
+    return res.data?.data;
+  },
+
   async updateUserRole(userId, role) {
     const res = await http.patch(`/users/${userId}/role`, { role });
     return res.data?.data?.user;
@@ -125,7 +140,16 @@ export const adminApi = {
       content: payload.body || payload.content,
       isPublished: true,
       clubSlug: 'campus-tech-society',
+      ...payload,
     });
+  },
+
+  async updateAnnouncement(id, payload) {
+    return communicationApi.updateAnnouncement(id, payload);
+  },
+
+  async deleteAnnouncement(id) {
+    return communicationApi.deleteAnnouncement(id);
   },
 
   async loyaltyRules() {

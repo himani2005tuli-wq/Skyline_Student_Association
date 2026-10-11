@@ -1,6 +1,9 @@
 import { Router } from 'express';
 import {
   listUsers,
+  createUser,
+  updateUser,
+  deleteUser,
   updateUserRole,
   grantUserAuthority,
   revokeUserAuthority,
@@ -29,7 +32,15 @@ router.put(
 // 3. List users with their roles, direct authorities, and effective authorities from DB
 router.get('/', requireAnyAuthority(['users:manage', 'auth:users:manage', '*']), listUsers);
 
-// 4. Update user's role dynamically in database
+// 4. Admin create new user
+router.post(
+  '/',
+  csrfSynchronisedProtection,
+  requireAnyAuthority(['users:manage', 'auth:users:manage', '*']),
+  createUser,
+);
+
+// 5. Update user's role dynamically in database
 router.patch(
   '/:id/role',
   csrfSynchronisedProtection,
@@ -37,7 +48,29 @@ router.patch(
   updateUserRole,
 );
 
-// 5. Grant dynamic granular authority to user in DB
+// 6. Admin update user
+router.put(
+  '/:id',
+  csrfSynchronisedProtection,
+  requireAnyAuthority(['users:manage', 'auth:users:manage', '*']),
+  updateUser,
+);
+router.patch(
+  '/:id',
+  csrfSynchronisedProtection,
+  requireAnyAuthority(['users:manage', 'auth:users:manage', '*']),
+  updateUser,
+);
+
+// 7. Admin delete user
+router.delete(
+  '/:id',
+  csrfSynchronisedProtection,
+  requireAnyAuthority(['users:manage', 'auth:users:manage', '*']),
+  deleteUser,
+);
+
+// 8. Grant dynamic granular authority to user in DB
 router.post(
   '/:id/authorities',
   csrfSynchronisedProtection,
@@ -45,7 +78,7 @@ router.post(
   grantUserAuthority,
 );
 
-// 6. Revoke dynamic granular authority from user in DB
+// 9. Revoke dynamic granular authority from user in DB
 router.delete(
   '/:id/authorities/:authority',
   csrfSynchronisedProtection,

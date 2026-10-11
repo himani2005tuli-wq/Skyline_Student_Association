@@ -129,6 +129,16 @@ export async function cancelScheduledAnnouncement(req, res, next) {
   }
 }
 
+export async function updateAnnouncement(req, res, next) {
+  try {
+    const { id } = req.params;
+    const announcement = await communicationService.updateAnnouncement(id, req.body);
+    res.json({ success: true, data: { announcement } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function deleteAnnouncement(req, res, next) {
   try {
     const { id } = req.params;

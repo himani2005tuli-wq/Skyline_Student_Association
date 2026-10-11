@@ -28,6 +28,12 @@ export default function AdminClubs() {
   const { user } = useAuth();
   const { confirm } = useConfirm();
   const isSuperAdmin = user?.role === 'super_admin' || user?.rawRole === 'SUPER_ADMIN';
+  const canManageClubs =
+    isSuperAdmin ||
+    user?.role === 'club_admin' ||
+    user?.role === 'admin' ||
+    user?.rawRole === 'CLUB_ADMIN' ||
+    user?.rawRole === 'ADMIN';
   const { data: clubs = [], isLoading } = useQuery({
     queryKey: ['clubs'],
     queryFn: clubsApi.list,
@@ -138,7 +144,7 @@ export default function AdminClubs() {
           </p>
         </div>
 
-        {isSuperAdmin && (
+        {canManageClubs && (
           <button
             onClick={openCreate}
             data-testid="add-club-button"
@@ -231,7 +237,7 @@ export default function AdminClubs() {
                     >
                       <Edit2 size={12} /> Edit
                     </button>
-                    {isSuperAdmin && (
+                    {canManageClubs && (
                       <button
                         onClick={() => handleDelete(club)}
                         className="rounded-lg p-1.5 text-ink/30 transition hover:bg-danger/10 hover:text-danger"
