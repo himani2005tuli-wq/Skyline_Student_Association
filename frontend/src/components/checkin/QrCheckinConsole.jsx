@@ -124,7 +124,7 @@ export default function QrCheckinConsole({
   htmlIdPrefix = 'console',
 }) {
   const qc = useQueryClient();
-  const [activeMode, setActiveMode] = useState('upload'); // 'upload' | 'camera' | 'search' | 'manual'
+  const [activeMode, setActiveMode] = useState('camera'); // 'camera' | 'upload' | 'search' | 'manual'
   const [code, setCode] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [result, setResult] = useState(null);
@@ -133,11 +133,16 @@ export default function QrCheckinConsole({
   const [cameras, setCameras] = useState([]);
   const [selectedCameraId, setSelectedCameraId] = useState('');
   const [isCameraActive, setIsCameraActive] = useState(false);
+  const [isCameraStarting, setIsCameraStarting] = useState(false);
+  const [cameraError, setCameraError] = useState(null);
   const [isMirrored, setIsMirrored] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const [inspectedQrAttendee, setInspectedQrAttendee] = useState(null);
 
   const scannerRef = useRef(null);
+  const isStartingRef = useRef(false);
+  const isProcessingRef = useRef(false);
+  const lastScannedRef = useRef({ code: '', time: 0 });
   const fileInputRef = useRef(null);
   const containerId = `${htmlIdPrefix}-qr-scanner-region`;
   const fileReaderId = `${htmlIdPrefix}-qr-file-region`;
@@ -236,90 +241,151 @@ export default function QrCheckinConsole({
   }, []);
 
   // ── Laptop Feature: Webcam & External Camera Scanner ──
-  const loadCameras = async () => {
-    try {
-      const { Html5Qrcode } = await import('html5-qrcode');
-      const devices = await Html5Qrcode.getCameras();
-      if (devices && devices.length > 0) {
-        setCameras(devices);
-        if (!selectedCameraId) setSelectedCameraId(devices[0].id);
-      }
-    } catch {}
+  const stopCamera = async () => {
+    if (scannerRef.current) {
+      try {
+        if (scannerRef.current.isScanning) {
+          await scannerRef.current.stop();
+        }
+      } catch {}
+      try {
+        scannerRef.current.clear();
+      } catch {}
+      scannerRef.current = null;
+    }
+    setIsCameraActive(false);
+    setIsCameraStarting(false);
   };
 
-  const startCamera = async () => {
+  const startCamera = async (forceCameraId = null) => {
+    if (isStartingRef.current) return;
+    isStartingRef.current = true;
+    setIsCameraStarting(true);
+    setCameraError(null);
+
     try {
       const { Html5Qrcode } = await import('html5-qrcode');
+
+      // Stop any existing instance
+      if (scannerRef.current) {
+        try {
+          if (scannerRef.current.isScanning) {
+            await scannerRef.current.stop();
+          }
+        } catch {}
+        try {
+          scannerRef.current.clear();
+        } catch {}
+        scannerRef.current = null;
+      }
+
+      // Check if container element is mounted in DOM
+      const containerEl = document.getElementById(containerId);
+      if (!containerEl) {
+        console.warn('Container not ready in DOM yet:', containerId);
+        setIsCameraStarting(false);
+        isStartingRef.current = false;
+        return;
+      }
+
+      const scanner = new Html5Qrcode(containerId, /* verbose= */ false);
+      scannerRef.current = scanner;
+
+      // Query cameras
       const devices = await Html5Qrcode.getCameras().catch(() => []);
       if (devices && devices.length > 0) {
         setCameras(devices);
       }
 
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.stop();
-        } catch {}
+      const targetCameraId =
+        forceCameraId || selectedCameraId || (devices && devices.length > 0 ? devices[0].id : null);
+      if (targetCameraId && !selectedCameraId) {
+        setSelectedCameraId(targetCameraId);
       }
 
-      const scanner = new Html5Qrcode(containerId);
-      scannerRef.current = scanner;
-
-      const targetCameraId =
-        selectedCameraId || (devices && devices.length > 0 ? devices[0].id : null);
-
-      const qrConfig = { fps: 12, qrbox: { width: 230, height: 230 } };
-      const onScanSuccess = async (decoded) => {
-        await scan(decoded);
+      const qrConfig = {
+        fps: 15,
+        qrbox: (viewfinderWidth, viewfinderHeight) => {
+          const edge = Math.min(viewfinderWidth, viewfinderHeight);
+          const size = Math.max(160, Math.floor(edge * 0.72));
+          return { width: size, height: size };
+        },
+        aspectRatio: 1.333333,
       };
 
-      try {
-        if (targetCameraId) {
-          await scanner.start(targetCameraId, qrConfig, onScanSuccess, () => {});
-        } else {
-          await scanner.start({ facingMode: 'environment' }, qrConfig, onScanSuccess, () => {});
+      const onScanSuccess = async (decoded) => {
+        const clean = String(decoded || '').trim();
+        if (!clean) return;
+        const now = Date.now();
+        if (lastScannedRef.current.code === clean && now - lastScannedRef.current.time < 3000) {
+          return;
         }
-      } catch (firstErr) {
-        // Fallback to user facing mode or first device ID
+        if (isProcessingRef.current) return;
+        isProcessingRef.current = true;
+        lastScannedRef.current = { code: clean, time: now };
+
+        await scan(clean);
+
+        setTimeout(() => {
+          isProcessingRef.current = false;
+        }, 1600);
+      };
+
+      let started = false;
+      if (targetCameraId) {
+        try {
+          await scanner.start(targetCameraId, qrConfig, onScanSuccess, () => {});
+          started = true;
+        } catch (camErr) {
+          console.warn('Camera start with device ID failed, trying facingMode:', camErr);
+        }
+      }
+
+      if (!started) {
         try {
           await scanner.start({ facingMode: 'user' }, qrConfig, onScanSuccess, () => {});
+          started = true;
         } catch {
-          if (devices && devices.length > 0) {
-            await scanner.start(devices[0].id, qrConfig, onScanSuccess, () => {});
-          } else {
-            throw firstErr;
-          }
+          await scanner.start({ facingMode: 'environment' }, qrConfig, onScanSuccess, () => {});
+          started = true;
         }
       }
 
       setIsCameraActive(true);
-      toast.success('Webcam scanner active. Hold ticket QR in front of camera.');
+      setCameraError(null);
+      toast.success('Live camera scanner active! Hold ticket QR code in front of camera.');
     } catch (err) {
+      console.error('Camera startup error:', err);
       setIsCameraActive(false);
-      toast.error('Camera access failed or permission denied.', {
-        description: 'You can use File Upload or Instant Search instead.',
+      setCameraError(err?.message || 'Camera permission denied or camera unavailable');
+      toast.error('Unable to open camera feed.', {
+        description: 'Check browser camera permissions, or use image upload / search below.',
       });
+    } finally {
+      setIsCameraStarting(false);
+      isStartingRef.current = false;
     }
   };
 
-  const stopCamera = async () => {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop();
-        scannerRef.current = null;
-      } catch {}
-    }
-    setIsCameraActive(false);
-  };
-
+  // Autostart camera on mount or mode change to 'camera'
   useEffect(() => {
+    let isMounted = true;
+    if (activeMode === 'camera') {
+      const timer = setTimeout(() => {
+        if (isMounted) startCamera();
+      }, 200);
+      return () => {
+        clearTimeout(timer);
+        stopCamera();
+      };
+    } else {
+      stopCamera();
+    }
     return () => {
-      if (scannerRef.current) {
-        try {
-          scannerRef.current.stop().catch(() => {});
-        } catch {}
-      }
+      isMounted = false;
+      stopCamera();
     };
-  }, []);
+  }, [activeMode]);
 
   // Filter attendees for fast search
   const filteredAttendees = useMemo(() => {
@@ -351,29 +417,23 @@ export default function QrCheckinConsole({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-ink/10 bg-paper-card p-2 shadow-sm">
         <div className="flex flex-wrap gap-1.5">
           <button
-            onClick={() => {
-              setActiveMode('upload');
-              stopCamera();
-            }}
+            onClick={() => setActiveMode('camera')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-              activeMode === 'upload'
+              activeMode === 'camera'
                 ? 'bg-ink text-paper shadow-sm'
                 : 'text-ink/65 hover:bg-ink/[0.06] hover:text-ink'
             }`}
-            data-testid="mode-tab-upload"
+            data-testid="mode-tab-camera"
           >
-            <Upload size={14} />
-            <span>Upload / Paste QR Image</span>
+            <Camera size={14} />
+            <span>Webcam / Live Scanner</span>
             <span className="rounded-full bg-accent/20 px-1.5 py-0.5 text-[10px] font-mono text-accent-dark font-semibold">
-              Laptop Ideal
+              Live
             </span>
           </button>
 
           <button
-            onClick={() => {
-              setActiveMode('search');
-              stopCamera();
-            }}
+            onClick={() => setActiveMode('search')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
               activeMode === 'search'
                 ? 'bg-ink text-paper shadow-sm'
@@ -386,26 +446,20 @@ export default function QrCheckinConsole({
           </button>
 
           <button
-            onClick={() => {
-              setActiveMode('camera');
-              startCamera();
-            }}
+            onClick={() => setActiveMode('upload')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
-              activeMode === 'camera'
+              activeMode === 'upload'
                 ? 'bg-ink text-paper shadow-sm'
                 : 'text-ink/65 hover:bg-ink/[0.06] hover:text-ink'
             }`}
-            data-testid="mode-tab-camera"
+            data-testid="mode-tab-upload"
           >
-            <Camera size={14} />
-            <span>Webcam / USB Camera</span>
+            <Upload size={14} />
+            <span>Upload / Paste QR Image</span>
           </button>
 
           <button
-            onClick={() => {
-              setActiveMode('manual');
-              stopCamera();
-            }}
+            onClick={() => setActiveMode('manual')}
             className={`flex items-center gap-2 rounded-xl px-4 py-2.5 text-xs font-bold transition ${
               activeMode === 'manual'
                 ? 'bg-ink text-paper shadow-sm'
@@ -569,43 +623,96 @@ export default function QrCheckinConsole({
             {/* ── MODE 3: WEBCAM SCANNER ── */}
             {activeMode === 'camera' && (
               <div className="space-y-4">
-                <div className="relative mx-auto aspect-[4/3] w-full max-w-sm overflow-hidden rounded-2xl border-2 border-dashed border-ink/20 bg-ink/[0.03]">
+                <style>{`
+                  @keyframes scanLaser {
+                    0% { top: 15%; opacity: 0.2; }
+                    50% { top: 82%; opacity: 1; }
+                    100% { top: 15%; opacity: 0.2; }
+                  }
+                  #${containerId} video {
+                    width: 100% !important;
+                    height: 100% !important;
+                    object-fit: cover !important;
+                    border-radius: 1.25rem;
+                  }
+                `}</style>
+                <div className="relative mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-3xl border-2 border-ink/15 bg-black shadow-lg">
                   {/* Dedicated html5-qrcode container with no React child nodes */}
                   <div
                     id={containerId}
-                    className={`h-full w-full ${isMirrored ? '[&_video]:scale-x-[-1]' : ''} ${!isCameraActive ? 'hidden' : 'block'}`}
+                    className={`h-full w-full ${isMirrored ? '[&_video]:scale-x-[-1]' : ''} [&_canvas]:hidden`}
                     data-testid="qr-reader-region"
                   />
 
+                  {/* Target Crosshairs and Animated Laser when camera is active */}
+                  {isCameraActive && (
+                    <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                      <div className="relative h-56 w-56 rounded-2xl border-2 border-accent/60 shadow-[0_0_0_9999px_rgba(0,0,0,0.38)]">
+                        {/* Corner Accents */}
+                        <span className="absolute -top-1 -left-1 h-5 w-5 border-t-4 border-l-4 border-accent rounded-tl-lg" />
+                        <span className="absolute -top-1 -right-1 h-5 w-5 border-t-4 border-r-4 border-accent rounded-tr-lg" />
+                        <span className="absolute -bottom-1 -left-1 h-5 w-5 border-b-4 border-l-4 border-accent rounded-bl-lg" />
+                        <span className="absolute -bottom-1 -right-1 h-5 w-5 border-b-4 border-r-4 border-accent rounded-br-lg" />
+                        {/* Animated Laser line */}
+                        <div
+                          className="absolute inset-x-2 h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent shadow-[0_0_12px_#F97316]"
+                          style={{
+                            animation: 'scanLaser 2.2s ease-in-out infinite',
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Idle / Loading / Error Overlay */}
                   {!isCameraActive && (
-                    <div className="flex h-full w-full flex-col items-center justify-center p-6 text-center text-ink/40">
-                      <ScanLine size={44} className="mx-auto text-accent-dark" />
-                      <p className="mt-3 text-xs font-semibold text-ink/70">Laptop Camera Idle</p>
-                      <p className="mt-1 text-[11px] text-ink/50 max-w-xs">
-                        Click Start Camera below to activate your webcam or connected USB camera.
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-paper/95 p-6 text-center text-ink/70 backdrop-blur-xs">
+                      <ScanLine size={48} className="mx-auto text-accent animate-pulse" />
+                      <p className="mt-3 text-sm font-bold text-ink">
+                        {isCameraStarting ? 'Connecting to Camera Feed…' : cameraError ? 'Camera Access Needed' : 'Camera Scanner Ready'}
                       </p>
+                      <p className="mt-1 max-w-xs text-xs text-ink/50">
+                        {cameraError || 'Click Start Camera below to activate your webcam.'}
+                      </p>
+                      <Button
+                        onClick={() => startCamera()}
+                        loading={isCameraStarting}
+                        loadingText="Starting camera…"
+                        size="sm"
+                        icon={Camera}
+                        className="mt-4"
+                        data-testid="camera-start-overlay-btn"
+                      >
+                        {cameraError ? 'Retry Camera' : 'Turn On Camera'}
+                      </Button>
                     </div>
                   )}
                 </div>
 
                 {/* Camera options bar */}
                 <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-                  {cameras.length > 1 && (
-                    <div className="flex items-center gap-2">
-                      <SlidersHorizontal size={14} className="text-ink/40" />
-                      <select
-                        value={selectedCameraId}
-                        onChange={(e) => setSelectedCameraId(e.target.value)}
-                        className="rounded-xl border border-ink/20 bg-white px-3 py-1.5 text-xs font-semibold text-ink"
-                      >
-                        {cameras.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.label || `Camera ${c.id.slice(0, 5)}`}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {cameras.length > 1 && (
+                      <div className="flex items-center gap-2">
+                        <SlidersHorizontal size={14} className="text-ink/40" />
+                        <select
+                          value={selectedCameraId}
+                          onChange={(e) => {
+                            const newId = e.target.value;
+                            setSelectedCameraId(newId);
+                            stopCamera().then(() => startCamera(newId));
+                          }}
+                          className="rounded-xl border border-ink/20 bg-white px-3 py-1.5 text-xs font-semibold text-ink"
+                        >
+                          {cameras.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.label || `Camera ${c.id.slice(0, 5)}`}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </div>
 
                   <label className="flex items-center gap-2 text-xs font-semibold text-ink/70 cursor-pointer">
                     <input
@@ -620,7 +727,7 @@ export default function QrCheckinConsole({
 
                 <div className="flex justify-center gap-3 pt-2">
                   {!isCameraActive ? (
-                    <Button onClick={startCamera} icon={Camera} data-testid="camera-scan-button">
+                    <Button onClick={() => startCamera()} icon={Camera} data-testid="camera-scan-button">
                       Start Camera Scan
                     </Button>
                   ) : (
