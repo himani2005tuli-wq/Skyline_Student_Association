@@ -133,7 +133,7 @@ function AppShell() {
         <Route
           path="/member"
           element={
-            <RequireRole roles={['member', 'student']}>
+            <RequireRole roles={['member', 'student', 'admin', 'event_manager', 'volunteer', 'treasurer', 'super_admin']}>
               <DashboardLayout />
             </RequireRole>
           }
