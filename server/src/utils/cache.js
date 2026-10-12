@@ -76,9 +76,15 @@ export async function setCache(key, value, ttlSeconds = 60) {
 export async function invalidateCache(tag) {
   try {
     if (redisClient && redisClient.status === 'ready') {
-      const keys = await redisClient.keys(`sos:cache:${tag}*`);
-      if (keys.length > 0) {
-        await redisClient.del(...keys);
+      const p1 = tag.startsWith('sos:cache:') ? `${tag}*` : `sos:cache:${tag}*`;
+      const p2 = `${tag}*`;
+      const [keys1, keys2] = await Promise.all([
+        redisClient.keys(p1),
+        redisClient.keys(p2),
+      ]);
+      const allKeys = [...new Set([...keys1, ...keys2])];
+      if (allKeys.length > 0) {
+        await redisClient.del(...allKeys);
       }
     }
   } catch {

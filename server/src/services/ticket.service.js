@@ -13,7 +13,10 @@ class TicketService {
 
     return prisma.$transaction(async (tx) => {
       // 1. Validate Event & Capacity
-      const event = await tx.event.findUnique({ where: { id: eventId } });
+      const event = await tx.event.findUnique({
+        where: { id: eventId },
+        include: { club: { select: { id: true, slug: true } } },
+      });
       if (!event || event.status !== 'PUBLISHED') {
         throw new NotFoundError('Event not found or not open for registration');
       }
@@ -63,6 +66,7 @@ class TicketService {
         basePriceInPaise,
         true,
         pointsToRedeem,
+        event.club?.slug,
       );
 
       // 4. Create Booking

@@ -5,7 +5,7 @@ import paymentsApi from './payments.api';
 
 export function quote({ kind, price = 0, qty = 1 }, user, redeemPoints) {
   const original = Math.round(price * qty);
-  const isMember = user?.role === 'member';
+  const isMember = (user?.role || '').toLowerCase() === 'member' || Boolean(user?.hasActiveMembership) || Boolean(user?.memberships?.length);
   // Membership plans are not eligible for member discount
   const memberPct = kind === 'plan' ? 0 : (isMember ? 15 : 0);
   const memberDiscount = Math.round((original * memberPct) / 100);

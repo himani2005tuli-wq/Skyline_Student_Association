@@ -259,13 +259,44 @@ class MembershipService {
    * Fetch active discount rules for a club.
    */
   async getActiveDiscountRule(clubSlug = 'campus-tech-society') {
-    return prisma.discountRule.findFirst({
-      where: {
-        club: { slug: clubSlug },
+    let rule = null;
+    if (clubSlug && clubSlug !== 'all') {
+      rule = await prisma.discountRule.findFirst({
+        where: {
+          club: { slug: clubSlug },
+          isActive: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    if (!rule) {
+      // Fallback to any active discount rule in the system
+      rule = await prisma.discountRule.findFirst({
+        where: { isActive: true },
+        orderBy: { createdAt: 'desc' },
+      });
+    }
+
+    if (!rule) {
+      // Safe default loyalty configuration
+      rule = {
         isActive: true,
-      },
-      orderBy: { createdAt: 'desc' },
-    });
+        discountType: 'PERCENTAGE',
+        discountValue: 10,
+        minPurchaseInPaise: 0,
+        pointValueInPaise: 100, // 1 pt = ₹1
+        minRedemptionPoints: 10,
+        maxRedemptionPercent: 30, // up to 30% discount
+        allowFullPointsCoverage: false,
+        membersEarnPoints: true,
+        pointsPerHundred: 5,
+        earnOnPreDiscount: false,
+        requiresActiveMembership: false,
+      };
+    }
+
+    return rule;
   }
 }
 
