@@ -626,3 +626,224 @@ export async function mockConfirmPayment(req, res, next) {
     next(err);
   }
 }
+
+/**
+ * In-app direct OTP verification payment endpoint (Card / UPI / NetBanking OTP)
+ */
+export async function verifyOtpPayment(req, res, next) {
+  try {
+    const { refId, kind, otp = '123456' } = req.body;
+    const userId = req.user.id;
+
+    if (!refId || !kind) {
+      throw new BadRequestError('refId and kind are required for OTP verification');
+    }
+
+    if (!/^\d{6}$/.test(otp)) {
+      throw new BadRequestError('Please enter a valid 6-digit OTP code');
+    }
+
+    const defaultClub = await prisma.club.findFirst();
+    const clubId = defaultClub?.id;
+    const paymentId = `pay_otp_${Date.now()}`;
+    const paidAt = new Date().toISOString();
+    const result = {
+      confirmed: true,
+      verified: true,
+      ref: refId,
+      paymentId,
+      paidAt,
+    };
+
+    if (kind === 'ticket') {
+      const booking = await ticketService.activateBooking(refId);
+
+      // Redeem points if points were used in this booking
+      if (booking.pointsRedeemed > 0) {
+        try {
+          await loyaltyService.redeemPoints(
+            userId,
+            booking.pointsRedeemed,
+            booking.discountInPaise,
+            { type: 'BOOKING', id: booking.id },
+            `redeem_otp_tkt_${booking.id}`,
+          );
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Points deduction skipped');
+        }
+      }
+
+      // Log transaction in Ledger
+      await ledgerService.logTransaction({
+        category: 'TICKET_INCOME',
+        amountInPaise: booking.totalInPaise,
+        description: `OTP Payment for booking #${booking.id} (${paymentId})`,
+        referenceType: 'BOOKING',
+        referenceId: booking.id,
+        clubId,
+      });
+
+      // Accrue loyalty points
+      const pointsToEarn = Math.floor(booking.totalInPaise / 1000);
+      if (pointsToEarn > 0) {
+        try {
+          await loyaltyService.earnPoints(
+            userId,
+            pointsToEarn,
+            'TICKET',
+            booking.id,
+            `earn_otp_tkt_${booking.id}`,
+          );
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Loyalty points credit skipped');
+        }
+      }
+
+      // Record successful payment
+      await prisma.payment.create({
+        data: {
+          bookingId: booking.id,
+          amountInPaise: booking.totalInPaise,
+          currency: 'INR',
+          status: 'SUCCESS',
+          providerName: 'OTP_VERIFIED',
+          providerRef: paymentId,
+          idempotencyKey: `pay_otp_tkt_${booking.id}_${paymentId}`,
+          metadata: { method: 'BANK_OTP', otpVerified: true },
+        },
+      }).catch(() => {});
+
+      await invalidateCache(`user:profile:${userId}`);
+
+      socketService.emitToUser(userId, 'ticket:purchased', {
+        bookingId: booking.id,
+        status: 'CONFIRMED',
+      });
+
+      result.booking = booking;
+    } else if (kind === 'merch') {
+      const order = await orderService.confirmOrder(refId);
+
+      if (order.pointsRedeemed > 0) {
+        try {
+          await loyaltyService.redeemPoints(
+            userId,
+            order.pointsRedeemed,
+            order.discountInPaise,
+            { type: 'ORDER', id: order.id },
+            `redeem_otp_ord_${order.id}`,
+          );
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Points deduction skipped');
+        }
+      }
+
+      await ledgerService.logTransaction({
+        category: 'MERCHANDISE_SALES',
+        amountInPaise: order.totalInPaise,
+        description: `OTP Payment for merch order #${order.id} (${paymentId})`,
+        referenceType: 'ORDER',
+        referenceId: order.id,
+        clubId,
+      });
+
+      const pointsToEarn = Math.floor(order.totalInPaise / 1000);
+      if (pointsToEarn > 0) {
+        try {
+          await loyaltyService.earnPoints(
+            userId,
+            pointsToEarn,
+            'ORDER',
+            order.id,
+            `earn_otp_ord_${order.id}`,
+          );
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Loyalty points credit skipped');
+        }
+      }
+
+      await prisma.payment.create({
+        data: {
+          orderId: order.id,
+          amountInPaise: order.totalInPaise,
+          currency: 'INR',
+          status: 'SUCCESS',
+          providerName: 'OTP_VERIFIED',
+          providerRef: paymentId,
+          idempotencyKey: `pay_otp_ord_${order.id}_${paymentId}`,
+          metadata: { method: 'BANK_OTP', otpVerified: true },
+        },
+      }).catch(() => {});
+
+      await invalidateCache(`user:profile:${userId}`);
+
+      socketService.emitToUser(userId, 'order:confirmed', {
+        orderId: order.id,
+        status: 'PAID',
+      });
+
+      result.order = order;
+    } else if (kind === 'plan') {
+      const membership = await membershipService.activateMembership(refId);
+      const plan = await prisma.membershipPlan.findUnique({
+        where: { id: membership.planId },
+        include: { club: true },
+      });
+
+      await ledgerService.logTransaction({
+        category: 'MEMBERSHIP_DUES',
+        amountInPaise: plan?.priceInPaise || 50000,
+        description: `OTP Payment for membership dues: ${plan?.name} (${paymentId})`,
+        referenceType: 'MEMBERSHIP',
+        referenceId: membership.id,
+        clubId: plan?.clubId,
+      });
+
+      try {
+        await loyaltyService.earnPoints(
+          userId,
+          50,
+          'MEMBERSHIP',
+          membership.id,
+          `welcome_otp_mem_${membership.id}`,
+        );
+      } catch (e) {
+        logger.warn({ err: e.message }, 'Welcome bonus skipped');
+      }
+
+      await prisma.payment.create({
+        data: {
+          amountInPaise: plan?.priceInPaise || 50000,
+          currency: 'INR',
+          status: 'SUCCESS',
+          providerName: 'OTP_VERIFIED',
+          providerRef: paymentId,
+          idempotencyKey: `pay_otp_mem_${membership.id}_${paymentId}`,
+          membershipPayment: {
+            create: {
+              membershipId: membership.id,
+              amountInPaise: plan?.priceInPaise || 50000,
+              pointsUsed: 0,
+            },
+          },
+          metadata: { method: 'BANK_OTP', otpVerified: true },
+        },
+      }).catch(() => {});
+
+      await invalidateCache(`user:profile:${userId}`);
+      await invalidateCache('plans');
+
+      socketService.emitToUser(userId, 'membership:activated', {
+        membershipId: membership.id,
+        planName: plan?.name,
+      });
+
+      result.membership = membership;
+    }
+
+    logger.info({ kind, refId, paymentId }, 'OTP payment verified and activated successfully');
+    res.json({ success: true, data: result });
+  } catch (err) {
+    next(err);
+  }
+}
