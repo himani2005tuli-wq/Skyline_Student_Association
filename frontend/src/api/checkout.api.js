@@ -93,7 +93,22 @@ export const checkoutApi = {
       };
     }
 
-    // Case 2: Mock mode fallback (when Razorpay is disabled or in unit tests)
+    // Case 2: In-App Direct OTP Payment flow (Card / UPI / NetBanking OTP)
+    if (payload.paymentMethod === 'otp') {
+      const otp = payload.otp || '123456';
+      const verifyRes = await paymentsApi.verifyOtp({
+        refId: orderData.refId,
+        kind,
+        otp,
+      });
+      return {
+        ref: verifyRes?.ref || orderData.refId,
+        breakdown: orderData.breakdown || breakdown,
+        paidAt: verifyRes?.paidAt || new Date().toISOString(),
+      };
+    }
+
+    // Case 3: Mock mode fallback (when Razorpay is disabled or in unit tests)
     if (orderData?.mock) {
       if (kind === 'ticket') {
         await paymentsApi.mockConfirm({ bookingId: orderData.refId });
@@ -109,11 +124,12 @@ export const checkoutApi = {
       };
     }
 
-    // Case 3: Official Razorpay Checkout flow
+    // Case 4: Official Razorpay Checkout flow
     if (orderData?.orderId && orderData?.keyId) {
       await ensureRazorpayScript();
 
       return new Promise((resolve, reject) => {
+        let isHandled = false;
         const title =
           kind === 'plan'
             ? 'Club Membership Subscription'
@@ -139,6 +155,7 @@ export const checkoutApi = {
           },
           modal: {
             ondismiss: () => {
+              if (isHandled) return;
               const cancelErr = new Error('Payment cancelled');
               cancelErr.friendly = 'Payment was cancelled. You have not been charged.';
               reject(cancelErr);
@@ -147,6 +164,7 @@ export const checkoutApi = {
             backdropclose: false,
           },
           handler: async (response) => {
+            isHandled = true;
             try {
               const verifyRes = await paymentsApi.verifyPayment({
                 razorpay_order_id: response.razorpay_order_id,

@@ -20,6 +20,11 @@ export const paymentsApi = {
     const res = await http.post('/payments/mock-confirm', { orderId, bookingId, membershipId, paymentId });
     return res.data?.data;
   },
+
+  async verifyOtp({ refId, kind, otp = '123456' }) {
+    const res = await http.post('/payments/verify-otp', { refId, kind, otp });
+    return res.data?.data;
+  },
 };
 
 export default paymentsApi;

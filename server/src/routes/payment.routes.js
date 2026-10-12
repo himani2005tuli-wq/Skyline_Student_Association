@@ -5,6 +5,7 @@ import {
   verifyPayment,
   webhookHandler,
   mockConfirmPayment,
+  verifyOtpPayment,
 } from '../controllers/payment.controller.js';
 import { requireAuth } from '../middleware/auth.js';
 import { csrfSynchronisedProtection } from '../middleware/csrf.js';
@@ -19,6 +20,9 @@ router.post('/create-order', requireAuth, csrfSynchronisedProtection, createPaym
 
 // Verify Razorpay payment signature and activate purchases
 router.post('/verify', requireAuth, csrfSynchronisedProtection, verifyPayment);
+
+// Direct In-App OTP Payment verification
+router.post('/verify-otp', requireAuth, csrfSynchronisedProtection, verifyOtpPayment);
 
 // Webhook endpoint (unprotected by auth, verified via Razorpay HMAC signature)
 router.post('/webhook', webhookHandler);
