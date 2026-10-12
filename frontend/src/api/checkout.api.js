@@ -93,20 +93,6 @@ export const checkoutApi = {
       };
     }
 
-    // Case 2: In-App Direct OTP Payment flow (Card / UPI / NetBanking OTP)
-    if (payload.paymentMethod === 'otp') {
-      const otp = payload.otp || '123456';
-      const verifyRes = await paymentsApi.verifyOtp({
-        refId: orderData.refId,
-        kind,
-        otp,
-      });
-      return {
-        ref: verifyRes?.ref || orderData.refId,
-        breakdown: orderData.breakdown || breakdown,
-        paidAt: verifyRes?.paidAt || new Date().toISOString(),
-      };
-    }
 
     // Case 3: Mock mode fallback (when Razorpay is disabled or in unit tests)
     if (orderData?.mock) {

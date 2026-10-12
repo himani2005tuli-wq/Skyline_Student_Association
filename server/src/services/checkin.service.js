@@ -45,9 +45,26 @@ class CheckInService {
           where: { id: cleanCode },
           include: {
             booking: {
-              user: true,
-              event: true,
-              ticketType: true,
+              include: {
+                user: true,
+                event: true,
+                ticketType: true,
+              },
+            },
+          },
+        });
+      }
+
+      if (!ticket) {
+        ticket = await tx.ticket.findFirst({
+          where: { bookingId: cleanCode },
+          include: {
+            booking: {
+              include: {
+                user: true,
+                event: true,
+                ticketType: true,
+              },
             },
           },
         });
