@@ -61,12 +61,23 @@ class OrderService {
         });
       }
 
+      // Determine clubSlug for localized discounts if applicable
+      let clubSlug = null;
+      if (sortedItems.length > 0) {
+        const vWithClub = await tx.productVariant.findUnique({
+          where: { id: sortedItems[0].variantId },
+          include: { product: { include: { club: { select: { slug: true } } } } },
+        });
+        clubSlug = vWithClub?.product?.club?.slug || null;
+      }
+
       // Calculate total pricing using pricing engine (merch usually eligible for member discounts)
       const pricing = await pricingService.calculatePriceBreakdown(
         userId,
         rawTotalInPaise,
         true, // eligible for discount
         pointsToRedeem,
+        clubSlug,
       );
 
       // Create the order

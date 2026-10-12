@@ -122,6 +122,7 @@ class AuthService {
           include: { plan: { include: { club: { select: { id: true, name: true, slug: true } } } } },
           take: 1,
         },
+        loyaltyAccount: { select: { balance: true } },
       },
     });
 
@@ -174,6 +175,7 @@ class AuthService {
           include: { plan: { include: { club: { select: { id: true, name: true, slug: true } } } } },
           take: 1,
         },
+        loyaltyAccount: { select: { balance: true } },
       },
     });
 
@@ -287,6 +289,7 @@ class AuthService {
    */
   _sanitizeUser(user) {
     const safeUser = { ...user };
+    safeUser.points = user.loyaltyAccount?.balance ?? user.points ?? 0;
     delete safeUser.passwordHash;
     delete safeUser.resetToken;
     delete safeUser.resetTokenExpiry;

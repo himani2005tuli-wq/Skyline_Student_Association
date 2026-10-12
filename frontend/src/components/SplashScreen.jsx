@@ -3,16 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Logo } from '@/components/Logo';
 
 const KEY = 'altitude.splashed';
-const MIN_MS = 1100;
+const MIN_MS = 150;
 
 /* Branded first-load curtain. Shows once per session, waits for the window
-   load event (or MIN_MS, whichever is later), then slides away. */
+   load event (or MIN_MS, whichever is later), then slides away smoothly. */
 export default function SplashScreen() {
   const [show, setShow] = useState(() => {
     try {
       return !sessionStorage.getItem(KEY);
     } catch {
-      return true;
+      return false;
     }
   });
 
@@ -50,7 +50,7 @@ export default function SplashScreen() {
           data-testid="splash-screen"
           className="noise fixed inset-0 z-[200] flex flex-col items-center justify-center bg-ink text-paper"
           initial={{ opacity: 1 }}
-          exit={{ y: '-100%', transition: { duration: 0.7, ease: [0.76, 0, 0.24, 1] } }}
+          exit={{ opacity: 0, transition: { duration: 0.25, ease: 'easeOut' } }}
         >
           <motion.div
             initial={{ opacity: 0, y: 14 }}

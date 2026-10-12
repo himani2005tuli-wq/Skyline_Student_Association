@@ -74,6 +74,20 @@ export async function createPaymentOrder(req, res, next) {
       // If zero payable (e.g. 100% points or free ticket)
       if (finalAmountInPaise <= 0) {
         await ticketService.activateBooking(booking.id);
+        if (pricing.pointsRedeemed > 0) {
+          try {
+            await loyaltyService.redeemPoints(
+              userId,
+              pricing.pointsRedeemed,
+              pricing.pointDiscountInPaise,
+              { type: 'BOOKING', id: booking.id },
+              `redeem_tkt_free_${booking.id}`,
+            );
+            await invalidateCache(`user:profile:${userId}`);
+          } catch (e) {
+            logger.warn({ err: e.message }, 'Failed to deduct points on zero balance booking');
+          }
+        }
         return res.status(201).json({
           success: true,
           data: {
@@ -105,6 +119,20 @@ export async function createPaymentOrder(req, res, next) {
       // If zero payable
       if (finalAmountInPaise <= 0) {
         await orderService.confirmOrder(order.id);
+        if (pricing.pointsRedeemed > 0) {
+          try {
+            await loyaltyService.redeemPoints(
+              userId,
+              pricing.pointsRedeemed,
+              pricing.pointDiscountInPaise,
+              { type: 'ORDER', id: order.id },
+              `redeem_ord_free_${order.id}`,
+            );
+            await invalidateCache(`user:profile:${userId}`);
+          } catch (e) {
+            logger.warn({ err: e.message }, 'Failed to deduct points on zero balance order');
+          }
+        }
         return res.status(201).json({
           success: true,
           data: {
@@ -295,6 +323,22 @@ export async function verifyPayment(req, res, next) {
     if (kind === 'ticket') {
       const booking = await ticketService.activateBooking(refId);
 
+      // Redeem points if points were used in this booking
+      if (booking.pointsRedeemed > 0) {
+        try {
+          await loyaltyService.redeemPoints(
+            userId,
+            booking.pointsRedeemed,
+            booking.discountInPaise,
+            { type: 'BOOKING', id: booking.id },
+            `redeem_tkt_${booking.id}`,
+          );
+          await invalidateCache(`user:profile:${userId}`);
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Loyalty points deduction failed');
+        }
+      }
+
       // Log transaction in Ledger
       const bookingRecord = await prisma.booking.findUnique({
         where: { id: refId },
@@ -336,6 +380,22 @@ export async function verifyPayment(req, res, next) {
     // ── Flow 2: Merchandise Order Confirmation ──
     else if (kind === 'merch') {
       const order = await orderService.confirmOrder(refId);
+
+      // Redeem points if points were used in this order
+      if (order.pointsRedeemed > 0) {
+        try {
+          await loyaltyService.redeemPoints(
+            userId,
+            order.pointsRedeemed,
+            order.discountInPaise,
+            { type: 'ORDER', id: order.id },
+            `redeem_ord_${order.id}`,
+          );
+          await invalidateCache(`user:profile:${userId}`);
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Loyalty points deduction failed');
+        }
+      }
 
       const orderRecord = await prisma.order.findUnique({
         where: { id: refId },
@@ -493,6 +553,20 @@ export async function mockConfirmPayment(req, res, next) {
 
     if (bookingId) {
       const booking = await ticketService.activateBooking(bookingId);
+      if (booking.pointsRedeemed > 0) {
+        try {
+          await loyaltyService.redeemPoints(
+            booking.userId,
+            booking.pointsRedeemed,
+            booking.discountInPaise,
+            { type: 'BOOKING', id: booking.id },
+            `redeem_mock_tkt_${booking.id}`,
+          );
+          await invalidateCache(`user:profile:${booking.userId}`);
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Mock loyalty points deduction failed');
+        }
+      }
       await ledgerService.logTransaction({
         category: 'TICKET_INCOME',
         amountInPaise: booking.totalInPaise,
@@ -506,6 +580,20 @@ export async function mockConfirmPayment(req, res, next) {
 
     if (orderId) {
       const order = await orderService.confirmOrder(orderId);
+      if (order.pointsRedeemed > 0) {
+        try {
+          await loyaltyService.redeemPoints(
+            order.userId,
+            order.pointsRedeemed,
+            order.discountInPaise,
+            { type: 'ORDER', id: order.id },
+            `redeem_mock_ord_${order.id}`,
+          );
+          await invalidateCache(`user:profile:${order.userId}`);
+        } catch (e) {
+          logger.warn({ err: e.message }, 'Mock loyalty points deduction failed');
+        }
+      }
       await ledgerService.logTransaction({
         category: 'MERCHANDISE_SALES',
         amountInPaise: order.totalInPaise,

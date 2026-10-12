@@ -101,11 +101,76 @@ const ROLE_HOME = {
   member: '/member',
   student: '/member',
   admin: '/admin',
+  club_admin: '/admin',
   event_manager: '/manage',
   volunteer: '/volunteer',
   treasurer: '/treasury',
   super_admin: '/system',
+  MEMBER: '/member',
+  ADMIN: '/admin',
+  CLUB_ADMIN: '/admin',
+  EVENT_MANAGER: '/manage',
+  VOLUNTEER: '/volunteer',
+  TREASURER: '/treasury',
+  SUPER_ADMIN: '/system',
 };
+
+const DEMO_ACCOUNTS = [
+  {
+    role: 'SUPER_ADMIN',
+    title: 'Super Admin',
+    desc: 'Platform Overseer & Audit',
+    email: 'root@skyline.edu',
+    dest: '/system',
+    badge: 'All-Access',
+    tone: 'danger',
+  },
+  {
+    role: 'CLUB_ADMIN',
+    title: 'Club Admin',
+    desc: 'Society Lead & Chapters',
+    email: 'admin@skyline.edu',
+    dest: '/admin',
+    badge: 'Club Ops',
+    tone: 'accent',
+  },
+  {
+    role: 'TREASURER',
+    title: 'Treasurer',
+    desc: 'Financial Ledger & Cash',
+    email: 'treasury@skyline.edu',
+    dest: '/treasury',
+    badge: 'Finance',
+    tone: 'warning',
+  },
+  {
+    role: 'EVENT_MANAGER',
+    title: 'Event Manager',
+    desc: 'Live Ops & QR Scanner',
+    email: 'em@skyline.edu',
+    dest: '/manage',
+    badge: 'Scanner',
+    tone: 'info',
+  },
+  {
+    role: 'VOLUNTEER',
+    title: 'Volunteer',
+    desc: 'Shift Desk & Check-in',
+    email: 'vol@skyline.edu',
+    dest: '/volunteer',
+    badge: 'Shifts',
+    tone: 'secondary',
+  },
+  {
+    role: 'MEMBER',
+    title: 'Student Member',
+    desc: 'Tickets & 300 Coins',
+    email: 'riya@student.edu',
+    dest: '/member',
+    badge: '300 Pts',
+    tone: 'success',
+  },
+];
 
 function FormError({ message }) {
   if (!message) return null;
@@ -125,24 +190,46 @@ export function Login() {
   const navigate = useNavigate();
   const location = useLocation();
   const [root, setRoot] = useState('');
+  const [demoLoggingIn, setDemoLoggingIn] = useState(null);
   const {
     register,
     handleSubmit,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm({ resolver: zodResolver(loginSchema) });
 
   if (user) {
-    return <Navigate to={location.state?.from || ROLE_HOME[user.role] || '/member'} replace />;
+    const roleKey = (user.role || '').toLowerCase();
+    const target = location.state?.from || ROLE_HOME[user.role] || ROLE_HOME[roleKey] || '/member';
+    return <Navigate to={target} replace />;
   }
 
   const onSubmit = async (data) => {
     setRoot('');
     try {
       const u = await login(data.email, data.password);
-      toast.success(`Welcome back, ${u.name.split(' ')[0]}.`);
-      navigate(location.state?.from || ROLE_HOME[u.role] || '/member');
+      toast.success(`Welcome back, ${u.name ? u.name.split(' ')[0] : 'Member'}.`);
+      const roleKey = (u.role || '').toLowerCase();
+      navigate(location.state?.from || ROLE_HOME[u.role] || ROLE_HOME[roleKey] || '/member');
     } catch (e) {
       setRoot(e.friendly || 'Could not sign in.');
+    }
+  };
+
+  const handleQuickDemo = async (demo) => {
+    setRoot('');
+    setDemoLoggingIn(demo.email);
+    setValue('email', demo.email);
+    setValue('password', 'skyline123');
+    try {
+      const u = await login(demo.email, 'skyline123');
+      toast.success(`Logged in as ${demo.title}`);
+      navigate(demo.dest || ROLE_HOME[u.role] || '/member');
+    } catch (e) {
+      setRoot(e.friendly || `Could not sign in as ${demo.title}.`);
+      toast.error(`Login failed: ${e.message || 'Invalid credentials'}`);
+    } finally {
+      setDemoLoggingIn(null);
     }
   };
 
@@ -153,9 +240,52 @@ export function Login() {
       </p>
       <h1 className="mt-4 font-display text-4xl font-medium tracking-tight text-ink">Sign in.</h1>
 
+      {/* ── Quick Demo Login Cards ── */}
+      <div className="mt-6 rounded-2xl border border-ink/10 bg-paper-card p-4 shadow-sm" data-testid="demo-accounts-panel">
+        <div className="flex items-center justify-between pb-3 border-b border-ink/8">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 rounded-full bg-success animate-pulse" />
+            <p className="font-mono text-xs font-semibold uppercase tracking-wider text-ink/70">
+              1-Click Demo Accounts
+            </p>
+          </div>
+          <span className="font-mono text-[11px] text-ink/40">Password: skyline123</span>
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+          {DEMO_ACCOUNTS.map((demo) => {
+            const isLoading = demoLoggingIn === demo.email;
+            return (
+              <button
+                key={demo.email}
+                type="button"
+                onClick={() => handleQuickDemo(demo)}
+                disabled={isSubmitting || !!demoLoggingIn}
+                className="group flex flex-col justify-between rounded-xl border border-ink/8 bg-paper p-2.5 text-left transition-all hover:border-accent hover:shadow-sm hover:-translate-y-0.5 disabled:opacity-50"
+                data-testid={`demo-login-${demo.role.toLowerCase()}`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className="font-display text-xs font-bold text-ink group-hover:text-accent">
+                    {demo.title}
+                  </span>
+                  <Badge tone={demo.tone} className="px-1.5 py-0 text-[9px] uppercase tracking-wider">
+                    {demo.badge}
+                  </Badge>
+                </div>
+                <div className="mt-1.5 flex items-center justify-between gap-1 text-[11px] text-ink/50">
+                  <span className="truncate">{demo.email.split('@')[0]}</span>
+                  <span className="text-[10px] font-semibold text-accent opacity-0 transition-opacity group-hover:opacity-100">
+                    {isLoading ? '…' : 'Enter →'}
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <form
         onSubmit={handleSubmit(onSubmit)}
-        className="mt-8 space-y-4"
+        className="mt-6 space-y-4"
         noValidate
         data-testid="login-form"
       >
@@ -191,7 +321,7 @@ export function Login() {
         </div>
         <Button
           type="submit"
-          loading={isSubmitting}
+          loading={isSubmitting || !!demoLoggingIn}
           loadingText="Signing in…"
           size="lg"
           className="w-full"
