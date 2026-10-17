@@ -1,0 +1,297 @@
+/**
+ * Curated merchandise catalog with real club apparel and assets
+ * Categories: Hoodies, T-Shirts, Sippers, Bags, Caps
+ * Supports colors and size variations
+ */
+export const MERCHANDISE_CATALOG = [
+  // ─── HOODIES ───
+  {
+    id: 'merch-hoodie-hash',
+    name: 'Hash Hackers Oversized Hoodie',
+    category: 'Hoodies',
+    club: 'Hash Computing & Tech',
+    price: 1049,
+    memberPrice: 899,
+    desc: 'Boxy drop-shoulder cut, 400 GSM heavyweight organic cotton fleece with 3D white embroidered hash crest.',
+    image: '/merchandise/Hash/hash-hoodie-real.jpg',
+    colors: [
+      { name: 'Terminal Black', hex: '#18181b', image: '/merchandise/Hash/hash-hoodie-real.jpg' },
+      { name: 'Hash Purple', hex: '#6366f1', image: '/merchandise/Hash/hash-hoodie-hash-colour.png' },
+      { name: 'Navy', hex: '#1e3a8a', image: '/merchandise/Hash/hash-hoodie-navy.png' },
+      { name: 'Heather Grey', hex: '#6b7280', image: '/merchandise/Hash/hash-hoodie-grey.png' },
+      { name: 'Ghost White', hex: '#f4f4f5', image: '/merchandise/Hash/hash-hoodie-white.png' },
+    ],
+    sizes: [
+      { label: 'S', stock: 10 },
+      { label: 'M', stock: 22 },
+      { label: 'L', stock: 16 },
+      { label: 'XL', stock: 8 },
+    ],
+  },
+  {
+    id: 'merch-hoodie-krida',
+    name: 'Krida Sports Athletic Hoodie',
+    category: 'Hoodies',
+    club: 'Krida Athletics & Sports',
+    price: 1099,
+    memberPrice: 929,
+    desc: 'Thermal performance tech-fleece pullover engineered for track warm-ups, gym sessions, and campus life.',
+    image: '/merchandise/Krida/krida-hoodie-real.jpg',
+    colors: [
+      { name: 'Crimson Red', hex: '#dc2626', image: '/merchandise/Krida/krida-hoodie-real.jpg' },
+      { name: 'Black', hex: '#18181b', image: '/merchandise/Krida/krida-hoodie-black.png' },
+      { name: 'Navy', hex: '#1e3a8a', image: '/merchandise/Krida/krida-hoodie-navy.png' },
+      { name: 'Grey', hex: '#6b7280', image: '/merchandise/Krida/krida-hoodie-grey.png' },
+      { name: 'White', hex: '#f4f4f5', image: '/merchandise/Krida/krida-hoodie-white.png' },
+    ],
+    sizes: [
+      { label: 'S', stock: 8 },
+      { label: 'M', stock: 15 },
+      { label: 'L', stock: 20 },
+      { label: 'XL', stock: 10 },
+    ],
+  },
+  {
+    id: 'merch-hoodie-etheria',
+    name: 'Etheria Summit Fleece Hoodie',
+    category: 'Hoodies',
+    club: 'Etheria Arts & Culture',
+    price: 999,
+    memberPrice: 849,
+    desc: 'Heavyweight 380 GSM brushed organic fleece with high-definition embroidered crest and kangaroo pouch.',
+    image: '/merchandise/Etheria/etheria-hoodie-real.jpg',
+    colors: [
+      { name: 'Etheria Teal', hex: '#0d9488', image: '/merchandise/Etheria/etheria-hoodie-real.jpg' },
+      { name: 'Black', hex: '#18181b', image: '/merchandise/Etheria/etheria-hoodie-black.png' },
+      { name: 'Navy', hex: '#1e3a8a', image: '/merchandise/Etheria/etheria-hoodie-navy.png' },
+      { name: 'Maroon', hex: '#831843', image: '/merchandise/Etheria/etheria-hoodie-maroon.png' },
+      { name: 'Grey', hex: '#6b7280', image: '/merchandise/Etheria/etheria-hoodie-grey.png' },
+    ],
+    sizes: [
+      { label: 'S', stock: 12 },
+      { label: 'M', stock: 18 },
+      { label: 'L', stock: 14 },
+      { label: 'XL', stock: 6 },
+    ],
+  },
+
+  // ─── T-SHIRTS ───
+  {
+    id: 'merch-tshirt-hash',
+    name: 'Hash Minimalist Embroidered Boxy Tee',
+    category: 'T-Shirts',
+    club: 'Hash Computing & Tech',
+    price: 549,
+    memberPrice: 449,
+    desc: 'Heavyweight 240 GSM organic ring-spun cotton drop-shoulder tee with pure white embroidered hash logo.',
+    image: '/merchandise/Hash/hash-tshirt-real.jpg',
+    colors: [
+      { name: 'Pitch Black', hex: '#18181b', image: '/merchandise/Hash/hash-tshirt-real.jpg' },
+      { name: 'Cyber Purple', hex: '#6366f1', image: '/merchandise/Hash/hash-tshirt-hash-colour.png' },
+      { name: 'Navy', hex: '#1e3a8a', image: '/merchandise/Hash/hash-tshirt-navy.png' },
+      { name: 'Slate Grey', hex: '#6b7280', image: '/merchandise/Hash/hash-tshirt-grey.png' },
+    ],
+    sizes: [
+      { label: 'S', stock: 20 },
+      { label: 'M', stock: 40 },
+      { label: 'L', stock: 32 },
+      { label: 'XL', stock: 14 },
+    ],
+  },
+  {
+    id: 'merch-tshirt-etheria',
+    name: 'Etheria Crest Bio-Wash Tee',
+    category: 'T-Shirts',
+    club: 'Etheria Arts & Culture',
+    price: 499,
+    memberPrice: 399,
+    desc: '100% combed organic ring-spun cotton (220 GSM), pre-shrunk, with delicate embroidered artistic crest.',
+    image: '/merchandise/Etheria/etheria-tshirt-real.jpg',
+    colors: [
+      { name: 'Etheria Teal', hex: '#0d9488', image: '/merchandise/Etheria/etheria-tshirt-real.jpg' },
+      { name: 'Black', hex: '#18181b', image: '/merchandise/Etheria/etheria-tshirt-black.png' },
+      { name: 'Navy', hex: '#1e3a8a', image: '/merchandise/Etheria/etheria-tshirt-navy.png' },
+      { name: 'White', hex: '#f4f4f5', image: '/merchandise/Etheria/etheria-tshirt-white.png' },
+    ],
+    sizes: [
+      { label: 'S', stock: 25 },
+      { label: 'M', stock: 35 },
+      { label: 'L', stock: 28 },
+      { label: 'XL', stock: 15 },
+    ],
+  },
+  {
+    id: 'merch-tshirt-krida',
+    name: 'Krida Squad Performance Tee',
+    category: 'T-Shirts',
+    club: 'Krida Athletics & Sports',
+    price: 549,
+    memberPrice: 449,
+    desc: 'Heavy-gauge crimson cotton tee engineered for movement, athletic recovery, and street style.',
+    image: '/merchandise/Krida/krida-tshirt-real.jpg',
+    colors: [
+      { name: 'Crimson Red', hex: '#dc2626', image: '/merchandise/Krida/krida-tshirt-real.jpg' },
+      { name: 'Black', hex: '#18181b', image: '/merchandise/Krida/krida-tshirt-black.png' },
+      { name: 'Navy', hex: '#1e3a8a', image: '/merchandise/Krida/krida-tshirt-navy.png' },
+      { name: 'White', hex: '#f4f4f5', image: '/merchandise/Krida/krida-tshirt-white.png' },
+    ],
+    sizes: [
+      { label: 'S', stock: 18 },
+      { label: 'M', stock: 24 },
+      { label: 'L', stock: 30 },
+      { label: 'XL', stock: 12 },
+    ],
+  },
+  {
+    id: 'merch-tshirt-tarashna',
+    name: 'Tarashna Art Heritage Tee',
+    category: 'T-Shirts',
+    club: 'Tarashna Creative Design',
+    price: 499,
+    memberPrice: 399,
+    desc: 'Super-soft combed cotton in warm amber with signature artistic chisel monogram crest.',
+    image: '/merchandise/Tarashna/tarashna-tshirt-real.jpg',
+    colors: [
+      { name: 'Amber Gold', hex: '#d97706', image: '/merchandise/Tarashna/tarashna-tshirt-real.jpg' },
+      { name: 'Black', hex: '#18181b', image: '/merchandise/Tarashna/tarashna-tshirt-black.png' },
+      { name: 'White', hex: '#f4f4f5', image: '/merchandise/Tarashna/tarashna-tshirt-white.png' },
+    ],
+    sizes: [
+      { label: 'S', stock: 16 },
+      { label: 'M', stock: 25 },
+      { label: 'L', stock: 22 },
+      { label: 'XL', stock: 8 },
+    ],
+  },
+
+  // ─── SIPPERS & BOTTLES ───
+  {
+    id: 'merch-sipper-hash',
+    name: 'Hash Stealth Matte Steel Sipper 650ml',
+    category: 'Sippers',
+    club: 'Hash Computing & Tech',
+    price: 599,
+    memberPrice: 499,
+    desc: 'Powder-coated matte black stainless steel flask with quick-flip sports spout and precision hash emblem.',
+    image: '/merchandise/Hash/hash-sipper-real.jpg',
+    colors: [
+      { name: 'Matte Black', hex: '#18181b', image: '/merchandise/Hash/hash-sipper-real.jpg' },
+      { name: 'Gunmetal Grey', hex: '#6b7280', image: '/merchandise/Hash/hash-sipper-grey.png' },
+      { name: 'Navy Blue', hex: '#1e3a8a', image: '/merchandise/Hash/hash-sipper-navy.png' },
+    ],
+    sizes: [
+      { label: '650 ml', stock: 45 },
+    ],
+  },
+  {
+    id: 'merch-sipper-krida',
+    name: 'Krida Hydro Insulated Sipper 750ml',
+    category: 'Sippers',
+    club: 'Krida Athletics & Sports',
+    price: 649,
+    memberPrice: 549,
+    desc: 'Double-walled vacuum insulated food-grade 18/8 stainless steel flask. Keeps water icy cold for 24 hours.',
+    image: '/merchandise/Krida/krida-sipper-real.jpg',
+    colors: [
+      { name: 'Crimson Red', hex: '#dc2626', image: '/merchandise/Krida/krida-sipper-real.jpg' },
+      { name: 'Matte Black', hex: '#18181b', image: '/merchandise/Krida/krida-sipper-black.png' },
+      { name: 'Deep Navy', hex: '#1e3a8a', image: '/merchandise/Krida/krida-sipper-navy.png' },
+    ],
+    sizes: [
+      { label: '750 ml', stock: 30 },
+      { label: '1000 ml', stock: 18 },
+    ],
+  },
+  {
+    id: 'merch-sipper-etheria',
+    name: 'Etheria Ceramic Touch Thermal Sipper 650ml',
+    category: 'Sippers',
+    club: 'Etheria Arts & Culture',
+    price: 579,
+    memberPrice: 489,
+    desc: 'Deep emerald powder-coated insulated travel flask with laser-crafted club dancer emblem.',
+    image: '/merchandise/Etheria/etheria-sipper-real.jpg',
+    colors: [
+      { name: 'Teal Blue', hex: '#0d9488', image: '/merchandise/Etheria/etheria-sipper-real.jpg' },
+      { name: 'Midnight Black', hex: '#18181b', image: '/merchandise/Etheria/etheria-sipper-black.png' },
+    ],
+    sizes: [
+      { label: '650 ml', stock: 26 },
+    ],
+  },
+
+  // ─── BAGS ───
+  {
+    id: 'merch-bag-hash',
+    name: 'Hash Tech Minimalist Campus Backpack',
+    category: 'Bags',
+    club: 'Hash Computing & Tech',
+    price: 1299,
+    memberPrice: 1099,
+    desc: 'Matte ballistic nylon tech pack with 16-inch padded laptop sleeve, dual bottle pockets, and clean embroidered hash insignia.',
+    image: '/merchandise/Hash/hash-bag-real.jpg',
+    colors: [
+      { name: 'Matte Black', hex: '#18181b', image: '/merchandise/Hash/hash-bag-real.jpg' },
+      { name: 'Deep Navy', hex: '#1e3a8a', image: '/merchandise/Hash/hash-bag-navy.jpg' },
+      { name: 'Heather Grey', hex: '#4b5563', image: '/merchandise/Hash/hash-bag-grey.jpg' },
+      { name: 'Crimson Red', hex: '#991b1b', image: '/merchandise/Hash/hash-bag-red.jpg' },
+    ],
+    sizes: [
+      { label: '25L Tech Pack', stock: 35 },
+    ],
+  },
+
+  // ─── CAPS ───
+  {
+    id: 'merch-cap-hash',
+    name: 'Hash Minimalist Dad Cap',
+    category: 'Caps',
+    club: 'Hash Computing & Tech',
+    price: 399,
+    memberPrice: 329,
+    desc: 'Low-profile washed cotton twill cap with structured brim and pure white 3D embroidered hash logo.',
+    image: '/merchandise/Hash/hash-cap-real.jpg',
+    colors: [
+      { name: 'Pitch Black', hex: '#18181b', image: '/merchandise/Hash/hash-cap-real.jpg' },
+      { name: 'Slate Grey', hex: '#6b7280', image: '/merchandise/Hash/hash-cap-grey.png' },
+      { name: 'Ghost White', hex: '#f4f4f5', image: '/merchandise/Hash/hash-cap-white.png' },
+    ],
+    sizes: [
+      { label: 'Adjustable', stock: 28 },
+    ],
+  },
+  {
+    id: 'merch-cap-krida',
+    name: 'Krida Athletic Washed Twill Cap',
+    category: 'Caps',
+    club: 'Krida Athletics & Sports',
+    price: 449,
+    memberPrice: 369,
+    desc: 'Classic crimson washed cotton unstructured cap with moisture-absorbing sweatband and embroidered runner emblem.',
+    image: '/merchandise/Krida/krida-cap-real.jpg',
+    colors: [
+      { name: 'Crimson Red', hex: '#dc2626', image: '/merchandise/Krida/krida-cap-real.jpg' },
+      { name: 'Black', hex: '#18181b', image: '/merchandise/Krida/krida-cap-black.png' },
+    ],
+    sizes: [
+      { label: 'Free Size', stock: 35 },
+    ],
+  },
+  {
+    id: 'merch-cap-etheria',
+    name: 'Etheria Heritage Unstructured Cap',
+    category: 'Caps',
+    club: 'Etheria Arts & Culture',
+    price: 399,
+    memberPrice: 329,
+    desc: '100% washed cotton twill 6-panel cap in deep forest teal with antique brass clasp and embroidered dancer emblem.',
+    image: '/merchandise/Etheria/etheria-cap-real.jpg',
+    colors: [
+      { name: 'Teal Green', hex: '#0d9488', image: '/merchandise/Etheria/etheria-cap-real.jpg' },
+      { name: 'Black', hex: '#18181b', image: '/merchandise/Etheria/etheria-cap-black.png' },
+    ],
+    sizes: [
+      { label: 'Adjustable', stock: 40 },
+    ],
+  },
+];
